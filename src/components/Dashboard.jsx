@@ -1,19 +1,65 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats } from '../services/bugzillaService'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
 
 function Dashboard() {
   const [activeView, setActiveView] = useState('overview')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [bugs, setBugs] = useState([])
+  const [bugStats, setBugStats] = useState(null)
 
-  // Sample data for bug tracking
+  // Configuration for Bugzilla queries
+  const [config, setConfig] = useState({
+    product: 'Core',
+    component: 'Performance'
+  })
+
+  // Fetch bugs on component mount or when config changes
+  useEffect(() => {
+    async function loadBugs() {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const fetchedBugs = await fetchBugs({
+          product: config.product,
+          component: config.component,
+          limit: 100
+        })
+
+        setBugs(fetchedBugs)
+        setBugStats(getBugStats(fetchedBugs))
+      } catch (err) {
+        setError(err.message)
+        console.error('Failed to fetch bugs:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadBugs()
+  }, [config.product, config.component])
+
+  // Process bug data for charts
+  const severityCounts = bugs.length > 0 ? groupBugsBySeverity(bugs) : { Critical: 0, High: 0, Medium: 0, Low: 0 }
+  const componentCounts = bugs.length > 0 ? groupBugsByComponent(bugs) : {}
+
+  // Prepare chart data from real Bugzilla data
   const bugData = {
     labels: ['Critical', 'High', 'Medium', 'Low'],
     datasets: [{
       label: 'Bug Count by Severity',
-      data: [5, 12, 23, 8],
+      data: [
+        severityCounts.Critical || 0,
+        severityCounts.High || 0,
+        severityCounts.Medium || 0,
+        severityCounts.Low || 0
+      ],
       backgroundColor: [
         'rgba(255, 99, 132, 0.8)',
         'rgba(255, 159, 64, 0.8)',
@@ -42,12 +88,15 @@ function Dashboard() {
     }],
   }
 
-  // Sample data for team breakdown
+  // Prepare team/component data from real Bugzilla data
+  const componentLabels = Object.keys(componentCounts).slice(0, 10) // Top 10 components
+  const componentValues = componentLabels.map(label => componentCounts[label])
+
   const teamData = {
-    labels: ['Frontend', 'Backend', 'DevOps', 'QA', 'Security'],
+    labels: componentLabels.length > 0 ? componentLabels : ['No Data'],
     datasets: [{
-      label: 'Active Components',
-      data: [15, 12, 8, 10, 6],
+      label: 'Bugs by Component',
+      data: componentValues.length > 0 ? componentValues : [0],
       backgroundColor: 'rgba(102, 126, 234, 0.8)',
       borderColor: 'rgb(102, 126, 234)',
       borderWidth: 2,
@@ -64,8 +113,52 @@ function Dashboard() {
     },
   }
 
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading Bugzilla data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard">
+        <div className="error-container">
+          <h3>Error loading data</h3>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="dashboard">
+      <div className="dashboard-header">
+        <div className="config-section">
+          <label>
+            Product:
+            <input
+              type="text"
+              value={config.product}
+              onChange={(e) => setConfig({ ...config, product: e.target.value })}
+            />
+          </label>
+          <label>
+            Component:
+            <input
+              type="text"
+              value={config.component}
+              onChange={(e) => setConfig({ ...config, component: e.target.value })}
+            />
+          </label>
+        </div>
+      </div>
+
       <nav className="dashboard-nav">
         <button
           className={activeView === 'overview' ? 'active' : ''}
@@ -89,7 +182,7 @@ function Dashboard() {
           className={activeView === 'teams' ? 'active' : ''}
           onClick={() => setActiveView('teams')}
         >
-          Teams
+          Components
         </button>
       </nav>
 
@@ -109,7 +202,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="chart-card">
-              <h3>Team Component Ownership</h3>
+              <h3>Bugs by Component</h3>
               <div className="chart-container">
                 <Bar data={teamData} options={chartOptions} />
               </div>
@@ -118,19 +211,19 @@ function Dashboard() {
               <h3>Quick Stats</h3>
               <div className="stats-grid">
                 <div className="stat-item">
-                  <span className="stat-value">48</span>
+                  <span className="stat-value">{bugStats?.total || 0}</span>
                   <span className="stat-label">Total Bugs</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-value">89%</span>
-                  <span className="stat-label">Avg Performance</span>
+                  <span className="stat-value">{bugStats?.open || 0}</span>
+                  <span className="stat-label">Open Bugs</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-value">5</span>
-                  <span className="stat-label">Active Teams</span>
+                  <span className="stat-value">{bugStats?.closed || 0}</span>
+                  <span className="stat-label">Closed Bugs</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-value">51</span>
+                  <span className="stat-value">{Object.keys(componentCounts).length}</span>
                   <span className="stat-label">Components</span>
                 </div>
               </div>
@@ -163,7 +256,7 @@ function Dashboard() {
         {activeView === 'teams' && (
           <div className="view-container">
             <div className="chart-card large">
-              <h3>Component Ownership by Team</h3>
+              <h3>Bugs by Component (Top 10)</h3>
               <div className="chart-container">
                 <Bar data={teamData} options={chartOptions} />
               </div>
