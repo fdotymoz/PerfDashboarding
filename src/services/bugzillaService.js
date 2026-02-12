@@ -139,7 +139,7 @@ export async function fetchFirefoxPerformanceBugs() {
   return fetchBugs({
     product: 'Core',
     component: 'Performance',
-    limit: 100
+    limit: 1000 // Fetch up to 1000 results - pagination handles display
   });
 }
 
@@ -170,7 +170,7 @@ export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams
     v1: impactLevel,
     resolution: '---', // Only open bugs
     bug_type: 'defect',
-    limit: 100,
+    limit: 1000, // Fetch up to 1000 results - pagination handles display
     ...additionalParams
   };
 
@@ -190,7 +190,7 @@ export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams
 export async function fetchAllPerformanceImpactBugs(additionalParams = {}) {
   return fetchBugs({
     quicksearch: '"Performance Impact"',
-    limit: 100,
+    limit: 1000, // Fetch up to 1000 results - pagination handles display
     ...additionalParams
   });
 }

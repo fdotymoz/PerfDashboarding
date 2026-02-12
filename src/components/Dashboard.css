@@ -89,6 +89,50 @@
   width: 100%;
 }
 
+.component-filter-bar {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.component-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.component-filter label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.component-filter select {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-width: 250px;
+  flex: 1;
+  max-width: 500px;
+  transition: all 0.2s ease;
+}
+
+.component-filter select:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.component-filter select:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .perf-impact-header {
   display: flex;
   justify-content: space-between;
@@ -204,6 +248,17 @@
   .refresh-button {
     width: 100%;
   }
+
+  .component-filter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .component-filter select {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 @media (prefers-color-scheme: light) {
@@ -221,6 +276,24 @@
   }
 
   .perf-impact-filter select:focus {
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  .component-filter-bar {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .component-filter select {
+    border-color: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .component-filter select:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .component-filter select:focus {
     background: rgba(0, 0, 0, 0.08);
   }
 }

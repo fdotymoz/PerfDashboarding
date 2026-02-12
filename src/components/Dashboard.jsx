@@ -25,6 +25,8 @@ function Dashboard() {
   const [perfImpactLevel, setPerfImpactLevel] = useState('high')
   const [perfImpactLoading, setPerfImpactLoading] = useState(false)
   const [perfImpactError, setPerfImpactError] = useState(null)
+  const [perfImpactComponents, setPerfImpactComponents] = useState([])
+  const [selectedComponent, setSelectedComponent] = useState('all')
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -36,7 +38,7 @@ function Dashboard() {
         const fetchedBugs = await fetchBugs({
           product: config.product,
           component: config.component,
-          limit: 100
+          limit: 1000
         })
 
         setBugs(fetchedBugs)
@@ -63,6 +65,7 @@ function Dashboard() {
       try {
         const fetchedBugs = await fetchBugsByPerformanceImpact(perfImpactLevel)
         setPerfImpactBugs(fetchedBugs)
+        setSelectedComponent('all') // Reset filter when fetching new data
       } catch (err) {
         setPerfImpactError(err.message)
         console.error('Failed to fetch performance impact bugs:', err)
@@ -74,11 +77,22 @@ function Dashboard() {
     loadPerfImpactBugs()
   }, [activeView, perfImpactLevel])
 
+  // Extract unique components from performance impact bugs
+  useEffect(() => {
+    if (perfImpactBugs.length > 0) {
+      const uniqueComponents = [...new Set(perfImpactBugs.map(bug => bug.component))].sort()
+      setPerfImpactComponents(uniqueComponents)
+    } else {
+      setPerfImpactComponents([])
+    }
+  }, [perfImpactBugs])
+
   // Handle manual refresh of performance impact data
   const handleRefreshPerfImpact = async () => {
     clearPerformanceImpactCache(perfImpactLevel)
     setPerfImpactLoading(true)
     setPerfImpactError(null)
+    setSelectedComponent('all') // Reset filter on refresh
 
     try {
       const fetchedBugs = await fetchBugsByPerformanceImpact(perfImpactLevel, {}, false) // false = skip cache
@@ -90,6 +104,11 @@ function Dashboard() {
       setPerfImpactLoading(false)
     }
   }
+
+  // Filter performance impact bugs by selected component
+  const filteredPerfImpactBugs = selectedComponent === 'all'
+    ? perfImpactBugs
+    : perfImpactBugs.filter(bug => bug.component === selectedComponent)
 
   // Process bug data for charts
   const severityCounts = bugs.length > 0 ? groupBugsBySeverity(bugs) : { Critical: 0, High: 0, Medium: 0, Low: 0 }
@@ -358,7 +377,29 @@ function Dashboard() {
             )}
 
             {!perfImpactLoading && !perfImpactError && (
-              <BugTable bugs={perfImpactBugs} />
+              <>
+                <div className="component-filter-bar">
+                  <div className="component-filter">
+                    <label htmlFor="component-filter">Filter by Component:</label>
+                    <select
+                      id="component-filter"
+                      value={selectedComponent}
+                      onChange={(e) => setSelectedComponent(e.target.value)}
+                    >
+                      <option value="all">All Components ({perfImpactBugs.length})</option>
+                      {perfImpactComponents.map(component => {
+                        const count = perfImpactBugs.filter(bug => bug.component === component).length
+                        return (
+                          <option key={component} value={component}>
+                            {component} ({count})
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+                </div>
+                <BugTable bugs={filteredPerfImpactBugs} />
+              </>
             )}
           </div>
         )}
