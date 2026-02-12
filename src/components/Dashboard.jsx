@@ -32,6 +32,9 @@ function Dashboard() {
   const [allPerfImpactBugs, setAllPerfImpactBugs] = useState([])
   const [allPerfImpactLoading, setAllPerfImpactLoading] = useState(false)
 
+  // Performance Priority subsection state
+  const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('speedometer3')
+
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
     async function loadBugs() {
@@ -275,6 +278,12 @@ function Dashboard() {
           Performance Impact
         </button>
         <button
+          className={activeView === 'perfpriority' ? 'active' : ''}
+          onClick={() => setActiveView('perfpriority')}
+        >
+          Performance Priority
+        </button>
+        <button
           className={activeView === 'benchmarks' ? 'active' : ''}
           onClick={() => setActiveView('benchmarks')}
         >
@@ -442,6 +451,58 @@ function Dashboard() {
                 <BugTable bugs={filteredPerfImpactBugs} />
               </>
             )}
+          </div>
+        )}
+
+        {activeView === 'perfpriority' && (
+          <div className="perf-priority-container">
+            <div className="perf-priority-header">
+              <h2>Performance Priority</h2>
+              <p className="section-description">
+                Focus areas for performance improvements
+              </p>
+            </div>
+
+            <nav className="subsection-nav">
+              <button
+                className={perfPrioritySubsection === 'speedometer3' ? 'active' : ''}
+                onClick={() => setPerfPrioritySubsection('speedometer3')}
+              >
+                Speedometer 3
+              </button>
+              <button
+                className={perfPrioritySubsection === 'androidapplink' ? 'active' : ''}
+                onClick={() => setPerfPrioritySubsection('androidapplink')}
+              >
+                Android Applink
+              </button>
+            </nav>
+
+            <div className="subsection-content">
+              {perfPrioritySubsection === 'speedometer3' && (
+                <div className="priority-section">
+                  <h3>Speedometer 3</h3>
+                  <p className="placeholder-text">
+                    Bugzilla query will be defined here for Speedometer 3 performance issues.
+                  </p>
+                  <div className="query-placeholder">
+                    <p>📊 Query configuration pending...</p>
+                  </div>
+                </div>
+              )}
+
+              {perfPrioritySubsection === 'androidapplink' && (
+                <div className="priority-section">
+                  <h3>Android Applink</h3>
+                  <p className="placeholder-text">
+                    Bugzilla query will be defined here for Android Applink performance issues.
+                  </p>
+                  <div className="query-placeholder">
+                    <p>📊 Query configuration pending...</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
