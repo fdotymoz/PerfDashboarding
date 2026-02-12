@@ -1,12 +1,37 @@
+import { useState } from 'react'
 import './BugTable.css'
 
 function BugTable({ bugs }) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(25)
+
   if (!bugs || bugs.length === 0) {
     return (
       <div className="bug-table-empty">
         <p>No bugs found matching the criteria.</p>
       </div>
     )
+  }
+
+  // Calculate pagination
+  const totalPages = Math.ceil(bugs.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentBugs = bugs.slice(startIndex, endIndex)
+
+  // Reset to page 1 if current page is out of bounds
+  if (currentPage > totalPages && totalPages > 0) {
+    setCurrentPage(1)
+  }
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value))
+    setCurrentPage(1)
   }
 
   const formatDate = (dateString) => {
@@ -40,8 +65,23 @@ function BugTable({ bugs }) {
 
   return (
     <div className="bug-table-container">
-      <div className="bug-count">
-        Showing {bugs.length} bug{bugs.length !== 1 ? 's' : ''}
+      <div className="table-controls">
+        <div className="bug-count">
+          Showing {startIndex + 1}-{Math.min(endIndex, bugs.length)} of {bugs.length} bug{bugs.length !== 1 ? 's' : ''}
+        </div>
+        <div className="items-per-page">
+          <label htmlFor="items-per-page">Per page:</label>
+          <select
+            id="items-per-page"
+            value={itemsPerPage}
+            onChange={handleItemsPerPageChange}
+          >
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
       </div>
       <div className="bug-table-wrapper">
         <table className="bug-table">
@@ -57,7 +97,7 @@ function BugTable({ bugs }) {
             </tr>
           </thead>
           <tbody>
-            {bugs.map((bug) => (
+            {currentBugs.map((bug) => (
               <tr key={bug.id}>
                 <td className="bug-id">
                   <a
@@ -85,6 +125,44 @@ function BugTable({ bugs }) {
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+          >
+            ⟪ First
+          </button>
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            ‹ Prev
+          </button>
+
+          <div className="pagination-info">
+            Page {currentPage} of {totalPages}
+          </div>
+
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Next ›
+          </button>
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            Last ⟫
+          </button>
+        </div>
+      )}
     </div>
   )
 }

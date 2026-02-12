@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact } from '../services/bugzillaService'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache } from '../services/bugzillaService'
 import BugTable from './BugTable'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
@@ -73,6 +73,23 @@ function Dashboard() {
 
     loadPerfImpactBugs()
   }, [activeView, perfImpactLevel])
+
+  // Handle manual refresh of performance impact data
+  const handleRefreshPerfImpact = async () => {
+    clearPerformanceImpactCache(perfImpactLevel)
+    setPerfImpactLoading(true)
+    setPerfImpactError(null)
+
+    try {
+      const fetchedBugs = await fetchBugsByPerformanceImpact(perfImpactLevel, {}, false) // false = skip cache
+      setPerfImpactBugs(fetchedBugs)
+    } catch (err) {
+      setPerfImpactError(err.message)
+      console.error('Failed to refresh performance impact bugs:', err)
+    } finally {
+      setPerfImpactLoading(false)
+    }
+  }
 
   // Process bug data for charts
   const severityCounts = bugs.length > 0 ? groupBugsBySeverity(bugs) : { Critical: 0, High: 0, Medium: 0, Low: 0 }
@@ -303,17 +320,27 @@ function Dashboard() {
           <div className="perf-impact-container">
             <div className="perf-impact-header">
               <h2>Bugs with Performance Impact</h2>
-              <div className="perf-impact-filter">
-                <label htmlFor="impact-level">Impact Level:</label>
-                <select
-                  id="impact-level"
-                  value={perfImpactLevel}
-                  onChange={(e) => setPerfImpactLevel(e.target.value)}
+              <div className="perf-impact-controls">
+                <div className="perf-impact-filter">
+                  <label htmlFor="impact-level">Impact Level:</label>
+                  <select
+                    id="impact-level"
+                    value={perfImpactLevel}
+                    onChange={(e) => setPerfImpactLevel(e.target.value)}
+                  >
+                    <option value="high">Performance Impact: High</option>
+                    <option value="medium">Performance Impact: Medium</option>
+                    <option value="low">Performance Impact: Low</option>
+                  </select>
+                </div>
+                <button
+                  className="refresh-button"
+                  onClick={handleRefreshPerfImpact}
+                  disabled={perfImpactLoading}
+                  title="Refresh data (clears cache)"
                 >
-                  <option value="high">Performance Impact: High</option>
-                  <option value="medium">Performance Impact: Medium</option>
-                  <option value="low">Performance Impact: Low</option>
-                </select>
+                  ↻ Refresh
+                </button>
               </div>
             </div>
 

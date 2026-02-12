@@ -105,6 +105,12 @@
   color: #667eea;
 }
 
+.perf-impact-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .perf-impact-filter {
   display: flex;
   align-items: center;
@@ -147,11 +153,44 @@
   text-align: center;
 }
 
+.refresh-button {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.refresh-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.refresh-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.refresh-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .perf-impact-header {
     flex-direction: column;
     gap: 16px;
     align-items: flex-start;
+  }
+
+  .perf-impact-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .perf-impact-filter {
@@ -160,6 +199,10 @@
 
   .perf-impact-filter select {
     flex: 1;
+  }
+
+  .refresh-button {
+    width: 100%;
   }
 }
 

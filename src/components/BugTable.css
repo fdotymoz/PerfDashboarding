@@ -2,11 +2,45 @@
   width: 100%;
 }
 
-.bug-count {
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 12px;
+  gap: 20px;
+}
+
+.bug-count {
   font-size: 0.95rem;
   opacity: 0.8;
   font-weight: 600;
+}
+
+.items-per-page {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.items-per-page label {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.items-per-page select {
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.items-per-page select:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
 .bug-table-wrapper {
@@ -139,6 +173,47 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.pagination-button {
+  padding: 8px 16px;
+  background: rgba(102, 126, 234, 0.2);
+  color: inherit;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+}
+
+.pagination-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  min-width: 120px;
+  text-align: center;
+}
+
 @media (max-width: 1024px) {
   .bug-table {
     font-size: 0.85rem;
@@ -151,6 +226,10 @@
 
   .bug-summary {
     max-width: 300px;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
   }
 }
 
@@ -171,6 +250,27 @@
   .bug-component,
   .bug-assignee {
     max-width: 150px;
+  }
+
+  .table-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pagination {
+    gap: 4px;
+    padding: 12px;
+  }
+
+  .pagination-button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  .pagination-info {
+    font-size: 0.85rem;
+    min-width: 100px;
   }
 }
 
@@ -193,5 +293,23 @@
 
   .bug-table tbody tr:hover {
     background: rgba(102, 126, 234, 0.05);
+  }
+
+  .pagination {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .pagination-button {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: rgba(102, 126, 234, 0.2);
+  }
+
+  .pagination-button:hover:not(:disabled) {
+    background: rgba(102, 126, 234, 0.2);
+  }
+
+  .items-per-page select {
+    border-color: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.02);
   }
 }

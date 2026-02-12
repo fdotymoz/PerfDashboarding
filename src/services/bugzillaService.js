@@ -3,6 +3,8 @@
  * Documentation: https://bugzilla.readthedocs.io/en/latest/api/
  */
 
+import { cachedFetch, generateCacheKey, clearCache } from '../utils/cache';
+
 const BUGZILLA_API_BASE = 'https://bugzilla.mozilla.org/rest';
 
 /**
@@ -11,7 +13,14 @@ const BUGZILLA_API_BASE = 'https://bugzilla.mozilla.org/rest';
  * @returns {Promise<Array>} Array of bug objects
  */
 export async function fetchBugs(params = {}) {
-  const queryParams = new URLSearchParams(params);
+  // Only fetch fields we actually display to reduce payload size
+  const defaultFields = 'id,summary,severity,status,component,assigned_to,assigned_to_detail,last_change_time,priority,product';
+
+  const queryParams = new URLSearchParams({
+    include_fields: defaultFields,
+    ...params
+  });
+
   const url = `${BUGZILLA_API_BASE}/bug?${queryParams.toString()}`;
 
   try {
@@ -151,11 +160,11 @@ export async function searchBugs(query, additionalParams = {}) {
  * Fetch bugs by performance impact level
  * @param {string} impactLevel - Performance impact level ('high', 'medium', or 'low')
  * @param {Object} additionalParams - Additional query parameters
+ * @param {boolean} useCache - Whether to use cache (default: true)
  * @returns {Promise<Array>} Array of bug objects
  */
-export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams = {}) {
-  // Use the custom field cf_performance_impact to filter bugs
-  return fetchBugs({
+export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams = {}, useCache = true) {
+  const params = {
     f1: 'cf_performance_impact',
     o1: 'equals',
     v1: impactLevel,
@@ -163,7 +172,14 @@ export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams
     bug_type: 'defect',
     limit: 100,
     ...additionalParams
-  });
+  };
+
+  if (!useCache) {
+    return fetchBugs(params);
+  }
+
+  const cacheKey = generateCacheKey('perf-impact', { impactLevel, ...additionalParams });
+  return cachedFetch(cacheKey, () => fetchBugs(params));
 }
 
 /**
@@ -177,4 +193,20 @@ export async function fetchAllPerformanceImpactBugs(additionalParams = {}) {
     limit: 100,
     ...additionalParams
   });
+}
+
+/**
+ * Clear cache for performance impact bugs
+ * @param {string} impactLevel - Optional specific impact level to clear
+ */
+export function clearPerformanceImpactCache(impactLevel = null) {
+  if (impactLevel) {
+    const cacheKey = generateCacheKey('perf-impact', { impactLevel });
+    clearCache(cacheKey);
+  } else {
+    // Clear all perf-impact caches
+    clearCache('perf-impact:high');
+    clearCache('perf-impact:medium');
+    clearCache('perf-impact:low');
+  }
 }
