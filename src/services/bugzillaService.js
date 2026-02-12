@@ -183,16 +183,28 @@ export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams
 }
 
 /**
- * Fetch all bugs with any performance impact
+ * Fetch all bugs with any performance impact (high, medium, or low)
  * @param {Object} additionalParams - Additional query parameters
+ * @param {boolean} useCache - Whether to use cache (default: true)
  * @returns {Promise<Array>} Array of bug objects
  */
-export async function fetchAllPerformanceImpactBugs(additionalParams = {}) {
-  return fetchBugs({
-    quicksearch: '"Performance Impact"',
-    limit: 1000, // Fetch up to 1000 results - pagination handles display
+export async function fetchAllPerformanceImpactBugs(additionalParams = {}, useCache = true) {
+  const params = {
+    f1: 'cf_performance_impact',
+    o1: 'anyexact',
+    v1: 'high,medium,low',
+    resolution: '---', // Only open bugs
+    bug_type: 'defect',
+    limit: 1000,
     ...additionalParams
-  });
+  };
+
+  if (!useCache) {
+    return fetchBugs(params);
+  }
+
+  const cacheKey = generateCacheKey('perf-impact', { all: true, ...additionalParams });
+  return cachedFetch(cacheKey, () => fetchBugs(params));
 }
 
 /**

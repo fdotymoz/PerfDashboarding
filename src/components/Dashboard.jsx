@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache } from '../services/bugzillaService'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs } from '../services/bugzillaService'
 import BugTable from './BugTable'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
@@ -27,6 +27,10 @@ function Dashboard() {
   const [perfImpactError, setPerfImpactError] = useState(null)
   const [perfImpactComponents, setPerfImpactComponents] = useState([])
   const [selectedComponent, setSelectedComponent] = useState('all')
+
+  // All performance impact bugs for Components tab
+  const [allPerfImpactBugs, setAllPerfImpactBugs] = useState([])
+  const [allPerfImpactLoading, setAllPerfImpactLoading] = useState(false)
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -86,6 +90,26 @@ function Dashboard() {
       setPerfImpactComponents([])
     }
   }, [perfImpactBugs])
+
+  // Fetch all performance impact bugs for Components tab
+  useEffect(() => {
+    async function loadAllPerfImpactBugs() {
+      if (activeView !== 'teams') return
+
+      setAllPerfImpactLoading(true)
+
+      try {
+        const fetchedBugs = await fetchAllPerformanceImpactBugs()
+        setAllPerfImpactBugs(fetchedBugs)
+      } catch (err) {
+        console.error('Failed to fetch all performance impact bugs:', err)
+      } finally {
+        setAllPerfImpactLoading(false)
+      }
+    }
+
+    loadAllPerfImpactBugs()
+  }, [activeView])
 
   // Handle manual refresh of performance impact data
   const handleRefreshPerfImpact = async () => {
@@ -153,15 +177,22 @@ function Dashboard() {
     }],
   }
 
-  // Prepare team/component data from real Bugzilla data
-  const componentLabels = Object.keys(componentCounts).slice(0, 10) // Top 10 components
-  const componentValues = componentLabels.map(label => componentCounts[label])
+  // Prepare team/component data from performance impact bugs
+  const perfImpactComponentCounts = allPerfImpactBugs.length > 0 ? groupBugsByComponent(allPerfImpactBugs) : {}
+
+  // Sort components by bug count and get top 10
+  const sortedPerfComponents = Object.entries(perfImpactComponentCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10)
+
+  const perfComponentLabels = sortedPerfComponents.map(([component]) => component)
+  const perfComponentValues = sortedPerfComponents.map(([, count]) => count)
 
   const teamData = {
-    labels: componentLabels.length > 0 ? componentLabels : ['No Data'],
+    labels: perfComponentLabels.length > 0 ? perfComponentLabels : ['No Data'],
     datasets: [{
-      label: 'Bugs by Component',
-      data: componentValues.length > 0 ? componentValues : [0],
+      label: 'Performance Impact Bugs by Component',
+      data: perfComponentValues.length > 0 ? perfComponentValues : [0],
       backgroundColor: 'rgba(102, 126, 234, 0.8)',
       borderColor: 'rgb(102, 126, 234)',
       borderWidth: 2,
@@ -326,12 +357,22 @@ function Dashboard() {
 
         {activeView === 'teams' && (
           <div className="view-container">
-            <div className="chart-card large">
-              <h3>Bugs by Component (Top 10)</h3>
-              <div className="chart-container">
-                <Bar data={teamData} options={chartOptions} />
+            {allPerfImpactLoading ? (
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>Loading performance impact data...</p>
               </div>
-            </div>
+            ) : (
+              <div className="chart-card large">
+                <h3>Top 10 Components with Performance Impact</h3>
+                <p className="chart-subtitle">
+                  Components with the most performance impact bugs (High, Medium, or Low)
+                </p>
+                <div className="chart-container">
+                  <Bar data={teamData} options={chartOptions} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
