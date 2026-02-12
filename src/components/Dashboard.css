@@ -85,6 +85,103 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.perf-impact-container {
+  width: 100%;
+}
+
+.perf-impact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.perf-impact-header h2 {
+  font-size: 1.5rem;
+  margin: 0;
+  color: #667eea;
+}
+
+.perf-impact-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.perf-impact-filter label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.perf-impact-filter select {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  min-width: 200px;
+  transition: all 0.2s ease;
+}
+
+.perf-impact-filter select:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.perf-impact-filter select:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.error-message {
+  padding: 20px;
+  background: rgba(255, 99, 132, 0.1);
+  border: 1px solid rgba(255, 99, 132, 0.3);
+  border-radius: 8px;
+  color: #ff6384;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .perf-impact-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .perf-impact-filter {
+    width: 100%;
+  }
+
+  .perf-impact-filter select {
+    flex: 1;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .perf-impact-header {
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .perf-impact-filter select {
+    border-color: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .perf-impact-filter select:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .perf-impact-filter select:focus {
+    background: rgba(0, 0, 0, 0.08);
+  }
+}
+
 .dashboard-nav {
   display: flex;
   gap: 10px;

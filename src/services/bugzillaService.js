@@ -146,3 +146,35 @@ export async function searchBugs(query, additionalParams = {}) {
     ...additionalParams
   });
 }
+
+/**
+ * Fetch bugs by performance impact level
+ * @param {string} impactLevel - Performance impact level ('high', 'medium', or 'low')
+ * @param {Object} additionalParams - Additional query parameters
+ * @returns {Promise<Array>} Array of bug objects
+ */
+export async function fetchBugsByPerformanceImpact(impactLevel, additionalParams = {}) {
+  // Use the custom field cf_performance_impact to filter bugs
+  return fetchBugs({
+    f1: 'cf_performance_impact',
+    o1: 'equals',
+    v1: impactLevel,
+    resolution: '---', // Only open bugs
+    bug_type: 'defect',
+    limit: 100,
+    ...additionalParams
+  });
+}
+
+/**
+ * Fetch all bugs with any performance impact
+ * @param {Object} additionalParams - Additional query parameters
+ * @returns {Promise<Array>} Array of bug objects
+ */
+export async function fetchAllPerformanceImpactBugs(additionalParams = {}) {
+  return fetchBugs({
+    quicksearch: '"Performance Impact"',
+    limit: 100,
+    ...additionalParams
+  });
+}

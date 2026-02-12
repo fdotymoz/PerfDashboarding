@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats } from '../services/bugzillaService'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact } from '../services/bugzillaService'
+import BugTable from './BugTable'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
 
@@ -18,6 +19,12 @@ function Dashboard() {
     product: 'Core',
     component: 'Performance'
   })
+
+  // Performance impact state
+  const [perfImpactBugs, setPerfImpactBugs] = useState([])
+  const [perfImpactLevel, setPerfImpactLevel] = useState('high')
+  const [perfImpactLoading, setPerfImpactLoading] = useState(false)
+  const [perfImpactError, setPerfImpactError] = useState(null)
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -44,6 +51,28 @@ function Dashboard() {
 
     loadBugs()
   }, [config.product, config.component])
+
+  // Fetch performance impact bugs when view is active or impact level changes
+  useEffect(() => {
+    async function loadPerfImpactBugs() {
+      if (activeView !== 'perfimpact') return
+
+      setPerfImpactLoading(true)
+      setPerfImpactError(null)
+
+      try {
+        const fetchedBugs = await fetchBugsByPerformanceImpact(perfImpactLevel)
+        setPerfImpactBugs(fetchedBugs)
+      } catch (err) {
+        setPerfImpactError(err.message)
+        console.error('Failed to fetch performance impact bugs:', err)
+      } finally {
+        setPerfImpactLoading(false)
+      }
+    }
+
+    loadPerfImpactBugs()
+  }, [activeView, perfImpactLevel])
 
   // Process bug data for charts
   const severityCounts = bugs.length > 0 ? groupBugsBySeverity(bugs) : { Critical: 0, High: 0, Medium: 0, Low: 0 }
@@ -138,7 +167,7 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
+      {/* <div className="dashboard-header">
         <div className="config-section">
           <label>
             Product:
@@ -157,7 +186,7 @@ function Dashboard() {
             />
           </label>
         </div>
-      </div>
+      </div> */}
 
       <nav className="dashboard-nav">
         <button
@@ -171,6 +200,12 @@ function Dashboard() {
           onClick={() => setActiveView('bugs')}
         >
           Bug Tracking
+        </button>
+        <button
+          className={activeView === 'perfimpact' ? 'active' : ''}
+          onClick={() => setActiveView('perfimpact')}
+        >
+          Performance Impact
         </button>
         <button
           className={activeView === 'benchmarks' ? 'active' : ''}
@@ -261,6 +296,43 @@ function Dashboard() {
                 <Bar data={teamData} options={chartOptions} />
               </div>
             </div>
+          </div>
+        )}
+
+        {activeView === 'perfimpact' && (
+          <div className="perf-impact-container">
+            <div className="perf-impact-header">
+              <h2>Bugs with Performance Impact</h2>
+              <div className="perf-impact-filter">
+                <label htmlFor="impact-level">Impact Level:</label>
+                <select
+                  id="impact-level"
+                  value={perfImpactLevel}
+                  onChange={(e) => setPerfImpactLevel(e.target.value)}
+                >
+                  <option value="high">Performance Impact: High</option>
+                  <option value="medium">Performance Impact: Medium</option>
+                  <option value="low">Performance Impact: Low</option>
+                </select>
+              </div>
+            </div>
+
+            {perfImpactLoading && (
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>Loading performance impact bugs...</p>
+              </div>
+            )}
+
+            {perfImpactError && !perfImpactLoading && (
+              <div className="error-message">
+                <p>Error: {perfImpactError}</p>
+              </div>
+            )}
+
+            {!perfImpactLoading && !perfImpactError && (
+              <BugTable bugs={perfImpactBugs} />
+            )}
           </div>
         )}
       </div>
