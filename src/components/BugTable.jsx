@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './BugTable.css'
 
-function BugTable({ bugs, bugTags, onAddTag, onRemoveTag, onRemoveBug }) {
+function BugTable({ bugs, bugTags, onAddTag, onRemoveTag, onRemoveBug, onAddToPriority }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [tagInputs, setTagInputs] = useState({})
@@ -100,6 +100,7 @@ function BugTable({ bugs, bugTags, onAddTag, onRemoveTag, onRemoveBug }) {
         <table className="bug-table">
           <thead>
             <tr>
+              {onAddToPriority && <th></th>}
               {onRemoveBug && <th></th>}
               <th>Bug ID</th>
               <th>Summary</th>
@@ -114,6 +115,15 @@ function BugTable({ bugs, bugTags, onAddTag, onRemoveTag, onRemoveBug }) {
           <tbody>
             {currentBugs.map((bug) => (
               <tr key={bug.id}>
+                {onAddToPriority && (
+                  <td className="bug-add-cell">
+                    <button
+                      className="bug-add-btn"
+                      onClick={() => onAddToPriority(bug.id)}
+                      title="Add to Priority List"
+                    >+</button>
+                  </td>
+                )}
                 {onRemoveBug && (
                   <td className="bug-remove-cell">
                     <button

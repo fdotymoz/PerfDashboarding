@@ -238,6 +238,23 @@ function Dashboard() {
     )
   }
 
+  // Add a bug from Performance Impact to the Priority Bugs list with auto-tag
+  const handleAddToPriority = (bugId) => {
+    const id = String(bugId)
+    const tagMap = { high: 'Perf High', medium: 'Perf Med', low: 'Perf Low' }
+    const tag = tagMap[perfImpactLevel]
+
+    setPriorityBugIds(prev => prev.includes(id) ? prev : [...prev, id])
+
+    if (tag) {
+      setPriorityBugTags(prev => {
+        const existing = prev[id] || []
+        if (existing.includes(tag)) return prev
+        return { ...prev, [id]: [...existing, tag] }
+      })
+    }
+  }
+
   // Filter performance impact bugs by selected component
   const filteredPerfImpactBugs = selectedComponent === 'all'
     ? perfImpactBugs
@@ -565,7 +582,10 @@ function Dashboard() {
                     </select>
                   </div>
                 </div>
-                <BugTable bugs={filteredPerfImpactBugs} />
+                <BugTable
+                  bugs={filteredPerfImpactBugs}
+                  onAddToPriority={handleAddToPriority}
+                />
               </>
             )}
           </div>
