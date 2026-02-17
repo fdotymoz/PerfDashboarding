@@ -8,6 +8,14 @@ import { cachedFetch, generateCacheKey, clearCache } from '../utils/cache';
 const BUGZILLA_API_BASE = 'https://bugzilla.mozilla.org/rest';
 
 /**
+ * Get Bugzilla API key from localStorage (set via browser console:
+ *   localStorage.setItem('bugzilla_api_key', 'YOUR_KEY')
+ */
+function getApiKey() {
+  return localStorage.getItem('bugzilla_api_key') || '';
+}
+
+/**
  * Fetch bugs with specified query parameters
  * @param {Object} params - Query parameters for Bugzilla API
  * @returns {Promise<Array>} Array of bug objects
@@ -16,8 +24,10 @@ export async function fetchBugs(params = {}) {
   // Only fetch fields we actually display to reduce payload size
   const defaultFields = 'id,summary,severity,status,component,assigned_to,assigned_to_detail,last_change_time,priority,product';
 
+  const apiKey = getApiKey();
   const queryParams = new URLSearchParams({
     include_fields: defaultFields,
+    ...(apiKey ? { api_key: apiKey } : {}),
     ...params
   });
 
@@ -219,8 +229,10 @@ export async function fetchBugsByIds(bugIds, useCache = true) {
   const defaultFields = 'id,summary,severity,status,component,assigned_to,assigned_to_detail,last_change_time,priority,product';
 
   const doFetch = async () => {
+    const apiKey = getApiKey();
     const idParams = bugIds.map(id => `id=${encodeURIComponent(id)}`).join('&');
-    const url = `${BUGZILLA_API_BASE}/bug?${idParams}&include_fields=${encodeURIComponent(defaultFields)}`;
+    const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
+    const url = `${BUGZILLA_API_BASE}/bug?${idParams}&include_fields=${encodeURIComponent(defaultFields)}${keyParam}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Bugzilla API error: ${response.status}`);
     const data = await response.json();
