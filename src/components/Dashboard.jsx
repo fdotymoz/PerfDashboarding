@@ -35,16 +35,23 @@ function Dashboard() {
   // Performance Priority subsection state
   const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('speedometer3')
 
-  // Priority Bugs subsection state
+  // Priority Bugs subsection state (persisted to localStorage)
   const [priorityBugInput, setPriorityBugInput] = useState('')
-  const [priorityBugIds, setPriorityBugIds] = useState([])
+  const [priorityBugIds, setPriorityBugIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('priority_bug_ids')) || [] } catch { return [] }
+  })
   const [priorityBugs, setPriorityBugs] = useState([])
   const [priorityBugsLoading, setPriorityBugsLoading] = useState(false)
   const [priorityBugsError, setPriorityBugsError] = useState(null)
-  const [priorityBugTags, setPriorityBugTags] = useState({})
+  const [priorityBugTags, setPriorityBugTags] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('priority_bug_tags')) || {} } catch { return {} }
+  })
   const [prioritySelectedTags, setPrioritySelectedTags] = useState([])
   const [tagFilterOpen, setTagFilterOpen] = useState(false)
   const tagFilterRef = useRef(null)
+
+  // Toast notifications
+  const [toasts, setToasts] = useState([])
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -150,6 +157,16 @@ function Dashboard() {
     loadPriorityBugs()
   }, [priorityBugIds, activeView, perfPrioritySubsection])
 
+  // Persist priority bug IDs to localStorage
+  useEffect(() => {
+    localStorage.setItem('priority_bug_ids', JSON.stringify(priorityBugIds))
+  }, [priorityBugIds])
+
+  // Persist priority bug tags to localStorage
+  useEffect(() => {
+    localStorage.setItem('priority_bug_tags', JSON.stringify(priorityBugTags))
+  }, [priorityBugTags])
+
   // Close tag filter dropdown when clicking outside
   useEffect(() => {
     if (!tagFilterOpen) return
@@ -161,6 +178,13 @@ function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [tagFilterOpen])
+
+  // Show a toast notification that auto-dismisses after 2.5 seconds
+  const showToast = (message, type = 'success') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 2500)
+  }
 
   // Handle manual refresh of performance impact data
   const handleRefreshPerfImpact = async () => {
@@ -243,6 +267,7 @@ function Dashboard() {
     const id = String(bugId)
     const tagMap = { high: 'Perf High', medium: 'Perf Med', low: 'Perf Low' }
     const tag = tagMap[perfImpactLevel]
+    const isNew = !priorityBugIds.includes(id)
 
     setPriorityBugIds(prev => prev.includes(id) ? prev : [...prev, id])
 
@@ -252,6 +277,12 @@ function Dashboard() {
         if (existing.includes(tag)) return prev
         return { ...prev, [id]: [...existing, tag] }
       })
+    }
+
+    if (isNew) {
+      showToast(`Bug #${id} added to Priority List`)
+    } else {
+      showToast(`Bug #${id} is already in Priority List`, 'info')
     }
   }
 
@@ -751,6 +782,14 @@ function Dashboard() {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <div key={toast.id} className={`toast toast-${toast.type}`}>
+            {toast.message}
+          </div>
+        ))}
       </div>
     </div>
   )
