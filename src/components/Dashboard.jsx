@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs } from '../services/bugzillaService'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds } from '../services/bugzillaService'
 import BugTable from './BugTable'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
@@ -34,6 +34,17 @@ function Dashboard() {
 
   // Performance Priority subsection state
   const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('speedometer3')
+
+  // Priority Bugs subsection state
+  const [priorityBugInput, setPriorityBugInput] = useState('')
+  const [priorityBugIds, setPriorityBugIds] = useState([])
+  const [priorityBugs, setPriorityBugs] = useState([])
+  const [priorityBugsLoading, setPriorityBugsLoading] = useState(false)
+  const [priorityBugsError, setPriorityBugsError] = useState(null)
+  const [priorityBugTags, setPriorityBugTags] = useState({})
+  const [prioritySelectedTags, setPrioritySelectedTags] = useState([])
+  const [tagFilterOpen, setTagFilterOpen] = useState(false)
+  const tagFilterRef = useRef(null)
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -114,6 +125,43 @@ function Dashboard() {
     loadAllPerfImpactBugs()
   }, [activeView])
 
+  // Fetch priority bugs when IDs change or subsection becomes active
+  useEffect(() => {
+    if (activeView !== 'perfpriority' || perfPrioritySubsection !== 'prioritybugs') return
+    if (priorityBugIds.length === 0) {
+      setPriorityBugs([])
+      return
+    }
+
+    async function loadPriorityBugs() {
+      setPriorityBugsLoading(true)
+      setPriorityBugsError(null)
+      try {
+        const fetchedBugs = await fetchBugsByIds(priorityBugIds)
+        setPriorityBugs(fetchedBugs)
+      } catch (err) {
+        setPriorityBugsError(err.message)
+        console.error('Failed to fetch priority bugs:', err)
+      } finally {
+        setPriorityBugsLoading(false)
+      }
+    }
+
+    loadPriorityBugs()
+  }, [priorityBugIds, activeView, perfPrioritySubsection])
+
+  // Close tag filter dropdown when clicking outside
+  useEffect(() => {
+    if (!tagFilterOpen) return
+    const handleClickOutside = (e) => {
+      if (tagFilterRef.current && !tagFilterRef.current.contains(e.target)) {
+        setTagFilterOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [tagFilterOpen])
+
   // Handle manual refresh of performance impact data
   const handleRefreshPerfImpact = async () => {
     clearPerformanceImpactCache(perfImpactLevel)
@@ -132,10 +180,79 @@ function Dashboard() {
     }
   }
 
+  // Handle adding bug IDs from input
+  const handleAddPriorityBugs = () => {
+    const parsed = priorityBugInput
+      .split(/[\s,]+/)
+      .map(s => s.trim())
+      .filter(s => /^\d+$/.test(s))
+    if (parsed.length === 0) return
+    setPriorityBugIds(prev => [...new Set([...prev, ...parsed])])
+    setPriorityBugInput('')
+  }
+
+  // Handle removing a specific bug ID
+  const handleRemovePriorityBugId = (id) => {
+    setPriorityBugIds(prev => prev.filter(bid => bid !== id))
+  }
+
+  // Handle manual refresh of priority bugs (skip cache)
+  const handleRefreshPriorityBugs = async () => {
+    if (priorityBugIds.length === 0) return
+    setPriorityBugsLoading(true)
+    setPriorityBugsError(null)
+    try {
+      const fetchedBugs = await fetchBugsByIds(priorityBugIds, false)
+      setPriorityBugs(fetchedBugs)
+    } catch (err) {
+      setPriorityBugsError(err.message)
+      console.error('Failed to refresh priority bugs:', err)
+    } finally {
+      setPriorityBugsLoading(false)
+    }
+  }
+
+  // Add a tag to a specific priority bug
+  const handleAddBugTag = (bugId, tag) => {
+    const cleaned = tag.trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)
+    if (!cleaned) return
+    setPriorityBugTags(prev => {
+      const existing = prev[String(bugId)] || []
+      if (existing.includes(cleaned)) return prev
+      return { ...prev, [String(bugId)]: [...existing, cleaned] }
+    })
+  }
+
+  // Remove a tag from a specific priority bug
+  const handleRemoveBugTag = (bugId, tag) => {
+    setPriorityBugTags(prev => ({
+      ...prev,
+      [String(bugId)]: (prev[String(bugId)] || []).filter(t => t !== tag)
+    }))
+  }
+
+  // Toggle a tag in the filter selection
+  const togglePriorityTag = (tag) => {
+    setPrioritySelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
   // Filter performance impact bugs by selected component
   const filteredPerfImpactBugs = selectedComponent === 'all'
     ? perfImpactBugs
     : perfImpactBugs.filter(bug => bug.component === selectedComponent)
+
+  // All unique tags across all priority bugs
+  const allPriorityTags = [...new Set(Object.values(priorityBugTags).flat())].sort()
+
+  // Filter priority bugs by selected tags (show all if none selected)
+  const filteredPriorityBugs = prioritySelectedTags.length === 0
+    ? priorityBugs
+    : priorityBugs.filter(bug => {
+        const bugTagList = priorityBugTags[String(bug.id)] || []
+        return prioritySelectedTags.some(tag => bugTagList.includes(tag))
+      })
 
   // Process bug data for charts
   const severityCounts = bugs.length > 0 ? groupBugsBySeverity(bugs) : { Critical: 0, High: 0, Medium: 0, Low: 0 }
@@ -476,6 +593,12 @@ function Dashboard() {
               >
                 Android Applink
               </button>
+              <button
+                className={perfPrioritySubsection === 'prioritybugs' ? 'active' : ''}
+                onClick={() => setPerfPrioritySubsection('prioritybugs')}
+              >
+                Priority Bugs
+              </button>
             </nav>
 
             <div className="subsection-content">
@@ -500,6 +623,109 @@ function Dashboard() {
                   <div className="query-placeholder">
                     <p>📊 Query configuration pending...</p>
                   </div>
+                </div>
+              )}
+
+              {perfPrioritySubsection === 'prioritybugs' && (
+                <div className="priority-section">
+                  <div className="perf-impact-header">
+                    <h3>Priority Bugs</h3>
+                    <div className="perf-impact-controls">
+                      <button
+                        className="refresh-button"
+                        onClick={handleRefreshPriorityBugs}
+                        disabled={priorityBugsLoading || priorityBugIds.length === 0}
+                        title="Refresh data (clears cache)"
+                      >
+                        ↻ Refresh
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="priority-bug-input-area">
+                    <div className="bug-input-row">
+                      <input
+                        type="text"
+                        className="bug-input"
+                        value={priorityBugInput}
+                        onChange={(e) => setPriorityBugInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddPriorityBugs()}
+                        placeholder="Enter bug numbers (e.g. 12345, 67890)"
+                      />
+                      <button
+                        className="add-bug-button"
+                        onClick={handleAddPriorityBugs}
+                        disabled={!priorityBugInput.trim()}
+                      >
+                        Add Bugs
+                      </button>
+                    </div>
+                  </div>
+
+                  {priorityBugsLoading && (
+                    <div className="loading-container">
+                      <div className="loading-spinner"></div>
+                      <p>Loading bugs...</p>
+                    </div>
+                  )}
+
+                  {priorityBugsError && !priorityBugsLoading && (
+                    <div className="error-message">
+                      <p>Error: {priorityBugsError}</p>
+                    </div>
+                  )}
+
+                  {!priorityBugsLoading && !priorityBugsError && priorityBugIds.length > 0 && (
+                    <>
+                      <div className="component-filter-bar">
+                        <div className="component-filter">
+                          <label>Filter by Tag:</label>
+                          <div className="tag-filter-dropdown" ref={tagFilterRef}>
+                            <button
+                              className="tag-filter-toggle"
+                              onClick={() => setTagFilterOpen(prev => !prev)}
+                            >
+                              {prioritySelectedTags.length === 0
+                                ? `All Bugs (${priorityBugs.length})`
+                                : `${prioritySelectedTags.length} tag${prioritySelectedTags.length > 1 ? 's' : ''} selected (${filteredPriorityBugs.length})`}
+                              <span className="dropdown-arrow">{tagFilterOpen ? '▲' : '▼'}</span>
+                            </button>
+                            {tagFilterOpen && (
+                              <div className="tag-filter-menu">
+                                {allPriorityTags.length === 0 ? (
+                                  <div className="tag-filter-empty">No tags added yet</div>
+                                ) : (
+                                  allPriorityTags.map(tag => (
+                                    <label key={tag} className="tag-filter-option">
+                                      <input
+                                        type="checkbox"
+                                        checked={prioritySelectedTags.includes(tag)}
+                                        onChange={() => togglePriorityTag(tag)}
+                                      />
+                                      {tag}
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <BugTable
+                        bugs={filteredPriorityBugs}
+                        bugTags={priorityBugTags}
+                        onAddTag={handleAddBugTag}
+                        onRemoveTag={handleRemoveBugTag}
+                        onRemoveBug={handleRemovePriorityBugId}
+                      />
+                    </>
+                  )}
+
+                  {!priorityBugsLoading && priorityBugIds.length === 0 && (
+                    <div className="query-placeholder">
+                      <p>Enter bug numbers above to load and track specific bugs</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

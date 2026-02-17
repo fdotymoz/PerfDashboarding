@@ -1,9 +1,22 @@
 import { useState } from 'react'
 import './BugTable.css'
 
-function BugTable({ bugs }) {
+function BugTable({ bugs, bugTags, onAddTag, onRemoveTag, onRemoveBug }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [tagInputs, setTagInputs] = useState({})
+
+  const handleTagInputChange = (bugId, value) => {
+    const cleaned = value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)
+    setTagInputs(prev => ({ ...prev, [String(bugId)]: cleaned }))
+  }
+
+  const handleTagSubmit = (bugId) => {
+    const val = (tagInputs[String(bugId)] || '').trim()
+    if (!val) return
+    onAddTag(bugId, val)
+    setTagInputs(prev => ({ ...prev, [String(bugId)]: '' }))
+  }
 
   if (!bugs || bugs.length === 0) {
     return (
@@ -87,6 +100,7 @@ function BugTable({ bugs }) {
         <table className="bug-table">
           <thead>
             <tr>
+              {onRemoveBug && <th></th>}
               <th>Bug ID</th>
               <th>Summary</th>
               <th>Severity</th>
@@ -94,11 +108,21 @@ function BugTable({ bugs }) {
               <th>Component</th>
               <th>Assigned To</th>
               <th>Last Changed</th>
+              {bugTags && <th>Tags</th>}
             </tr>
           </thead>
           <tbody>
             {currentBugs.map((bug) => (
               <tr key={bug.id}>
+                {onRemoveBug && (
+                  <td className="bug-remove-cell">
+                    <button
+                      className="bug-remove-btn"
+                      onClick={() => onRemoveBug(String(bug.id))}
+                      title="Remove from list"
+                    >×</button>
+                  </td>
+                )}
                 <td className="bug-id">
                   <a
                     href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`}
@@ -120,6 +144,35 @@ function BugTable({ bugs }) {
                   {bug.assigned_to_detail?.real_name || bug.assigned_to || 'Unassigned'}
                 </td>
                 <td className="bug-date">{formatDate(bug.last_change_time)}</td>
+                {bugTags && (
+                  <td className="bug-tags-cell">
+                    <div className="bug-tags-list">
+                      {(bugTags[String(bug.id)] || []).map(tag => (
+                        <span key={tag} className="bug-tag-chip">
+                          {tag}
+                          <button onClick={() => onRemoveTag(bug.id, tag)} title="Remove tag">×</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="bug-tag-input-row">
+                      <input
+                        type="text"
+                        className="bug-tag-input"
+                        value={tagInputs[String(bug.id)] || ''}
+                        onChange={(e) => handleTagInputChange(bug.id, e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleTagSubmit(bug.id)}
+                        placeholder="Add tag…"
+                        maxLength={15}
+                      />
+                      <button
+                        className="bug-tag-add-btn"
+                        onClick={() => handleTagSubmit(bug.id)}
+                        disabled={!(tagInputs[String(bug.id)] || '').trim()}
+                        title="Add tag"
+                      >+</button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

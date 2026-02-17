@@ -208,6 +208,32 @@ export async function fetchAllPerformanceImpactBugs(additionalParams = {}, useCa
 }
 
 /**
+ * Fetch specific bugs by their IDs
+ * @param {Array<string|number>} bugIds - Array of bug IDs to fetch
+ * @param {boolean} useCache - Whether to use cache (default: true)
+ * @returns {Promise<Array>} Array of bug objects
+ */
+export async function fetchBugsByIds(bugIds, useCache = true) {
+  if (!bugIds || bugIds.length === 0) return [];
+
+  const defaultFields = 'id,summary,severity,status,component,assigned_to,assigned_to_detail,last_change_time,priority,product';
+
+  const doFetch = async () => {
+    const idParams = bugIds.map(id => `id=${encodeURIComponent(id)}`).join('&');
+    const url = `${BUGZILLA_API_BASE}/bug?${idParams}&include_fields=${encodeURIComponent(defaultFields)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Bugzilla API error: ${response.status}`);
+    const data = await response.json();
+    return data.bugs || [];
+  };
+
+  if (!useCache) return doFetch();
+
+  const cacheKey = generateCacheKey('priority-bugs', { ids: [...bugIds].sort().join(',') });
+  return cachedFetch(cacheKey, doFetch);
+}
+
+/**
  * Clear cache for performance impact bugs
  * @param {string} impactLevel - Optional specific impact level to clear
  */
