@@ -502,6 +502,14 @@ function Dashboard() {
                   <span className="stat-value">{Object.keys(componentCounts).length}</span>
                   <span className="stat-label">Components</span>
                 </div>
+                <div
+                  className="stat-item stat-item-link"
+                  onClick={() => { setActiveView('perfpriority'); setPerfPrioritySubsection('prioritybugs') }}
+                  title="Go to Priority Bugs"
+                >
+                  <span className="stat-value stat-value-priority">{priorityBugIds.length}</span>
+                  <span className="stat-label">Priority Bugs</span>
+                </div>
               </div>
             </div>
           </div>
