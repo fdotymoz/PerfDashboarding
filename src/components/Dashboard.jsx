@@ -32,6 +32,9 @@ function Dashboard() {
   const [allPerfImpactBugs, setAllPerfImpactBugs] = useState([])
   const [allPerfImpactLoading, setAllPerfImpactLoading] = useState(false)
 
+  // Overview performance impact counts (high/med/low fetched concurrently)
+  const [overviewPerfCounts, setOverviewPerfCounts] = useState({ high: 0, medium: 0, low: 0 })
+
   // Performance Priority subsection state
   const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('speedometer3')
 
@@ -130,6 +133,26 @@ function Dashboard() {
     }
 
     loadAllPerfImpactBugs()
+  }, [activeView])
+
+  // Fetch high/med/low counts concurrently for the Overview chart
+  useEffect(() => {
+    if (activeView !== 'overview') return
+
+    async function loadOverviewPerfCounts() {
+      try {
+        const [highBugs, medBugs, lowBugs] = await Promise.all([
+          fetchBugsByPerformanceImpact('high'),
+          fetchBugsByPerformanceImpact('medium'),
+          fetchBugsByPerformanceImpact('low')
+        ])
+        setOverviewPerfCounts({ high: highBugs.length, medium: medBugs.length, low: lowBugs.length })
+      } catch (err) {
+        console.error('Failed to load overview perf counts:', err)
+      }
+    }
+
+    loadOverviewPerfCounts()
   }, [activeView])
 
   // Fetch priority bugs when IDs change or subsection becomes active
@@ -333,6 +356,33 @@ function Dashboard() {
     }],
   }
 
+  // Overview performance impact chart data
+  const overviewBugData = {
+    labels: ['Priority', 'High', 'Med', 'Low'],
+    datasets: [{
+      label: 'Bug Count',
+      data: [
+        priorityBugIds.length,
+        overviewPerfCounts.high,
+        overviewPerfCounts.medium,
+        overviewPerfCounts.low
+      ],
+      backgroundColor: [
+        'rgba(167, 139, 250, 0.8)',
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(255, 205, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+      ],
+      borderColor: [
+        'rgb(167, 139, 250)',
+        'rgb(255, 99, 132)',
+        'rgb(255, 205, 86)',
+        'rgb(75, 192, 192)',
+      ],
+      borderWidth: 2,
+    }],
+  }
+
   // Sample data for benchmark scores
   const benchmarkData = {
     labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
@@ -375,6 +425,34 @@ function Dashboard() {
         position: 'bottom',
       },
     },
+  }
+
+  // Click handler for the impact distribution bar chart
+  const handleImpactBarClick = (event, elements) => {
+    if (!elements || elements.length === 0) return
+    const actions = [
+      () => { setActiveView('perfpriority'); setPerfPrioritySubsection('prioritybugs') },
+      () => { setActiveView('perfimpact'); setPerfImpactLevel('high') },
+      () => { setActiveView('perfimpact'); setPerfImpactLevel('medium') },
+      () => { setActiveView('perfimpact'); setPerfImpactLevel('low') },
+    ]
+    actions[elements[0].index]?.()
+  }
+
+  const impactBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+    },
+    onHover: (event, elements) => {
+      if (event.native) {
+        event.native.target.style.cursor = elements.length ? 'pointer' : 'default'
+      }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
   }
 
   if (loading) {
@@ -466,9 +544,9 @@ function Dashboard() {
         {activeView === 'overview' && (
           <div className="overview-grid">
             <div className="chart-card">
-              <h3>Bug Severity Distribution</h3>
+              <h3>Performance Impact Distribution</h3>
               <div className="chart-container">
-                <Pie data={bugData} options={chartOptions} />
+                <Bar data={overviewBugData} options={impactBarOptions} onClick={handleImpactBarClick} />
               </div>
             </div>
             <div className="chart-card">
