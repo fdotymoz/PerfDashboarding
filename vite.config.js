@@ -5,6 +5,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true
+    open: true,
+    proxy: {
+      '/stmo': {
+        target: 'https://sql.telemetry.mozilla.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/stmo/, '')
+      }
+    }
   }
 })

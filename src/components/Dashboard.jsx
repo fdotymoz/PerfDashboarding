@@ -3,6 +3,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
 import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds } from '../services/bugzillaService'
+import { fetchBenchmarkRows } from '../services/redashService'
 import BugTable from './BugTable'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
@@ -55,6 +56,11 @@ function Dashboard() {
 
   // Toast notifications
   const [toasts, setToasts] = useState([])
+
+  // Benchmark data from STMO
+  const [benchmarkRows, setBenchmarkRows] = useState([])
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false)
+  const [benchmarkError, setBenchmarkError] = useState(null)
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -189,6 +195,28 @@ function Dashboard() {
   useEffect(() => {
     localStorage.setItem('priority_bug_tags', JSON.stringify(priorityBugTags))
   }, [priorityBugTags])
+
+  // Fetch benchmark data from STMO when benchmarks view becomes active
+  useEffect(() => {
+    if (activeView !== 'benchmarks') return
+    if (benchmarkRows.length > 0) return // already loaded
+
+    async function loadBenchmarks() {
+      setBenchmarkLoading(true)
+      setBenchmarkError(null)
+      try {
+        const rows = await fetchBenchmarkRows()
+        setBenchmarkRows(rows)
+      } catch (err) {
+        setBenchmarkError(err.message)
+        console.error('Failed to fetch benchmark data:', err)
+      } finally {
+        setBenchmarkLoading(false)
+      }
+    }
+
+    loadBenchmarks()
+  }, [activeView])
 
   // Close tag filter dropdown when clicking outside
   useEffect(() => {
@@ -606,11 +634,79 @@ function Dashboard() {
 
         {activeView === 'benchmarks' && (
           <div className="view-container">
-            <div className="chart-card large">
-              <h3>Benchmark Score Trends</h3>
-              <div className="chart-container">
-                <Line data={benchmarkData} options={chartOptions} />
+            <div className="chart-card benchmark-card">
+              <div className="perf-impact-header">
+                <h3>Android Applink Startup — Platform Benchmarks</h3>
+                <button
+                  className="refresh-button"
+                  onClick={() => { setBenchmarkRows([]); setBenchmarkError(null) }}
+                  disabled={benchmarkLoading}
+                  title="Reload data from STMO"
+                >
+                  ↻ Refresh
+                </button>
               </div>
+              <p className="chart-subtitle">Source: STMO query #114368 — values in milliseconds</p>
+
+              {benchmarkLoading && (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <p>Loading benchmark data from STMO…</p>
+                </div>
+              )}
+
+              {benchmarkError && !benchmarkLoading && (
+                <div className="error-message">
+                  <p>Error loading benchmarks: {benchmarkError}</p>
+                </div>
+              )}
+
+              {!benchmarkLoading && !benchmarkError && benchmarkRows.length > 0 && (
+                <div className="benchmark-table-wrapper">
+                  <table className="benchmark-table">
+                    <thead>
+                      <tr>
+                        <th>Platform</th>
+                        <th>Weight</th>
+                        <th>Fx Start</th>
+                        <th>Fx Current</th>
+                        <th>Delta YTD</th>
+                        <th>Chrome Current</th>
+                        <th>Delta to Chrome YTD</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {benchmarkRows.map((row, i) => {
+                        const deltaYtd = row.delta_ytd
+                        const deltaChromeYtd = row.delta_to_chrome_ytd
+                        const deltaYtdClass = deltaYtd == null ? '' : deltaYtd < 0 ? 'delta-negative' : deltaYtd > 0 ? 'delta-positive' : ''
+                        const deltaChromeClass = deltaChromeYtd == null ? '' : deltaChromeYtd < 0 ? 'delta-negative' : deltaChromeYtd > 0 ? 'delta-positive' : ''
+                        return (
+                          <tr key={i} className={i === 0 ? 'benchmark-row-total' : ''}>
+                            <td className="benchmark-platform">{row.platform_label}</td>
+                            <td className="benchmark-num">{row.platform_weight != null ? row.platform_weight : '—'}</td>
+                            <td className="benchmark-num">{row.start_value != null ? row.start_value.toFixed(0) : '—'}</td>
+                            <td className="benchmark-num">{row.current_value != null ? row.current_value.toFixed(0) : '—'}</td>
+                            <td className={`benchmark-num ${deltaYtdClass}`}>
+                              {deltaYtd != null ? (deltaYtd > 0 ? '+' : '') + deltaYtd.toFixed(0) : '—'}
+                            </td>
+                            <td className="benchmark-num">{row.current_value_chrome != null ? row.current_value_chrome.toFixed(0) : '—'}</td>
+                            <td className={`benchmark-num ${deltaChromeClass}`}>
+                              {deltaChromeYtd != null ? (deltaChromeYtd > 0 ? '+' : '') + deltaChromeYtd.toFixed(0) : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {!benchmarkLoading && !benchmarkError && benchmarkRows.length === 0 && !benchmarkLoading && (
+                <div className="query-placeholder">
+                  <p>No benchmark data available. Click Refresh to load.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

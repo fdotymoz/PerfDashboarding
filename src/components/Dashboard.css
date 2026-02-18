@@ -543,6 +543,81 @@
   }
 }
 
+.benchmark-table-wrapper {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.benchmark-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.benchmark-table th {
+  padding: 10px 14px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(102, 126, 234, 0.15);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.4);
+  white-space: nowrap;
+}
+
+.benchmark-table th:first-child {
+  text-align: left;
+}
+
+.benchmark-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.benchmark-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.benchmark-row-total td {
+  font-weight: 700;
+  background: rgba(102, 126, 234, 0.1);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+.benchmark-platform {
+  text-align: left;
+  font-weight: 500;
+}
+
+.benchmark-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta-negative {
+  color: #4ade80;
+}
+
+.delta-positive {
+  color: #f87171;
+}
+
+@media (prefers-color-scheme: light) {
+  .benchmark-table th {
+    background: rgba(102, 126, 234, 0.08);
+    border-bottom-color: rgba(102, 126, 234, 0.3);
+  }
+  .benchmark-table td {
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+  }
+  .benchmark-row-total td {
+    background: rgba(102, 126, 234, 0.06);
+    border-bottom-color: rgba(102, 126, 234, 0.25);
+  }
+}
+
 @media (prefers-color-scheme: light) {
   .tag-filter-toggle {
     border-color: rgba(0, 0, 0, 0.2);
@@ -693,6 +768,10 @@
 .chart-card.large {
   width: 100%;
   max-width: 800px;
+}
+
+.chart-card.benchmark-card {
+  width: 100%;
 }
 
 .chart-card h3 {
