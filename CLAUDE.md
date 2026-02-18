@@ -15,16 +15,16 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - **Frontend**: React 18 + Vite
 - **Charts**: Chart.js with react-chartjs-2
 - **Data Source**: Mozilla Bugzilla REST API
-- **Styling**: CSS with light/dark mode support
+- **Styling**: CSS with light/dark mode toggle (JS-controlled `html.light-mode` class)
 - **State Management**: React hooks (useState, useEffect)
 
 ## Current Features
 
 ### 1. Overview Tab
-- Bug severity distribution (pie chart)
-- Performance trends (line chart - mock data)
+- **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Components, Priority Bugs (→ Priority tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
+- Performance Impact Distribution bar chart (clickable bars → navigate to relevant tab/query)
+- Performance Trends (line chart - mock data)
 - Component breakdown (bar chart)
-- Quick stats (total bugs, open/closed, components)
 
 ### 2. Bug Tracking Tab
 - Bug severity visualization
@@ -46,14 +46,25 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - **Manual refresh**: Button to clear cache and fetch fresh data
 - **Limit**: Up to 1,000 bugs per query
 
-### 4. Performance Priority Tab (NEW - Framework Only)
-- **Speedometer 3** subsection (query TBD)
-- **Android Applink** subsection (query TBD)
-- Placeholder for future Bugzilla queries
+### 4. Performance Priority Tab
+- **Speedometer 3** subsection (query TBD — placeholder)
+- **Android Applink** subsection (query TBD — placeholder)
+- **Priority Bugs** subsection:
+  - Manually enter bug numbers (comma/space separated, Enter key support)
+  - Fetches from Bugzilla API by ID via `fetchBugsByIds()`
+  - Per-bug tags (alphanumeric, 15 char max) stored in localStorage
+  - Tag-based multi-select filter dropdown
+  - Remove bug via X button in table
+  - Green `+` button on Performance Impact tab adds bugs here with auto-tags (Perf High/Med/Low)
+  - Toast notifications on add; state persisted to `priority_bug_ids` / `priority_bug_tags` in localStorage
 
 ### 5. Benchmarks Tab
-- Mock benchmark trend data
-- Line chart visualization
+- Live data from STMO Redash query #114368 (Android Applink startup)
+- Spreadsheet-style table: Platform, Weight, Fx Start, Fx Current, Delta YTD (%), Chrome Current, Delta to Chrome YTD (%)
+- Delta columns color-coded: green = negative (improvement), red = positive (regression)
+- BLENDED TOTAL row bolded/highlighted
+- POST-then-poll pattern via Vite proxy (`/stmo` → `https://sql.telemetry.mozilla.org`)
+- Refresh button uses `benchmarkRefreshTick` state to re-trigger the fetch useEffect
 
 ### 6. Components Tab
 - **Top 10 components** with any performance impact
@@ -87,7 +98,8 @@ src/
 │   ├── BugTable.jsx            # Reusable bug table with pagination
 │   └── BugTable.css            # Table styles
 ├── services/
-│   └── bugzillaService.js      # Bugzilla API integration
+│   ├── bugzillaService.js      # Bugzilla API integration
+│   └── redashService.js        # STMO Redash API (query #114368, POST-then-poll)
 ├── utils/
 │   └── cache.js                # Caching utilities (TTL, cache keys)
 ├── App.jsx                     # Root component
@@ -140,6 +152,12 @@ src/
 - `getBugStats(bugs)` - Calculate open/closed/total stats
 - `clearPerformanceImpactCache(impactLevel)` - Clear specific cache
 
+### `redashService.js`
+
+- `fetchBenchmarkRows(snapshotDate)` - POST to STMO query #114368 with date param, polls until result ready
+- Proxied via Vite: `/stmo` → `https://sql.telemetry.mozilla.org`
+- Returns rows: `platform_label, platform_weight, start_value, current_value, delta_ytd, current_value_chrome, delta_to_chrome_ytd`
+
 ### `cache.js`
 
 - `getCached(key)` - Get cached data if not expired
@@ -161,13 +179,13 @@ Server runs on http://localhost:3000/ with hot module replacement
 git add .
 git commit -m "Descriptive message
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 git push origin main
 ```
 
 ### Check Dev Server Output
 ```bash
-tail -f /tmp/claude-1000/-home-frankdoty-AI-Coding-Projects-PerfDashboarding/tasks/*.output
+tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 ```
 
 ## Next Steps / TODOs
@@ -179,9 +197,9 @@ tail -f /tmp/claude-1000/-home-frankdoty-AI-Coding-Projects-PerfDashboarding/tas
 - [ ] Add filtering and sorting options
 
 ### Data Sources
-- [ ] Connect real benchmark data (replace mock data)
-- [ ] Add performance metrics API integration
-- [ ] Implement time-series data for trends
+- [x] Connect real benchmark data — STMO Redash query #114368
+- [ ] Add additional STMO queries / metrics
+- [ ] Implement time-series data for trends (Benchmarks tab Performance Trends chart is still mock data)
 
 ### Features to Add
 - [ ] Date range filters (last week/month/quarter)
@@ -194,11 +212,11 @@ tail -f /tmp/claude-1000/-home-frankdoty-AI-Coding-Projects-PerfDashboarding/tas
 - [ ] Real-time updates (WebSocket or polling)
 
 ### UI Improvements
+- [x] Light/dark mode toggle (persists to localStorage, falls back to system preference)
 - [ ] Add charts to Performance Priority subsections
 - [ ] Click on chart sections to see detailed bugs
 - [ ] Drill-down navigation (component → bugs)
 - [ ] Dashboard customization (drag/drop widgets)
-- [ ] User preferences (saved in localStorage)
 - [ ] Keyboard shortcuts
 
 ### Performance
@@ -222,6 +240,12 @@ tail -f /tmp/claude-1000/-home-frankdoty-AI-Coding-Projects-PerfDashboarding/tas
 - TTL: 5 minutes (300,000ms)
 - Storage: In-memory (cleared on page refresh)
 - Alternative: localStorage for persistence
+
+### Theme System
+- Default: dark mode
+- `html.light-mode` class on `<html>` element activates light overrides across all CSS files
+- Do NOT use `@media (prefers-color-scheme: light)` — all light mode rules use `html.light-mode` selectors
+- Toggle state lives in `App.jsx`; persisted to `localStorage.darkMode`
 
 ### Commented Out Code
 - Product/Component search boxes at top (Dashboard.jsx lines 240-259)
@@ -251,6 +275,6 @@ Check console logs for "Cache HIT" or "Cache MISS". Click refresh button to clea
 
 ---
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-02-18
 **Version**: MVP (0.1.0)
 **Status**: Active Development
