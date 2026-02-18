@@ -413,57 +413,55 @@
   }
 }
 
-@media (prefers-color-scheme: light) {
-  .bug-tag-input {
-    border-color: rgba(0, 0, 0, 0.15);
-    background: rgba(0, 0, 0, 0.02);
-  }
+html.light-mode .bug-tag-input {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
+}
 
-  .bug-tag-chip {
-    background: rgba(102, 126, 234, 0.1);
-    border-color: rgba(102, 126, 234, 0.3);
-  }
+html.light-mode .bug-tag-chip {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
+}
 
-  .bug-tag-add-btn {
-    background: rgba(102, 126, 234, 0.15);
-    border-color: rgba(102, 126, 234, 0.3);
-  }
+html.light-mode .bug-tag-add-btn {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.3);
+}
 
-  .bug-table-wrapper {
-    border-color: rgba(0, 0, 0, 0.1);
-  }
+html.light-mode .bug-table-wrapper {
+  border-color: rgba(0, 0, 0, 0.1);
+}
 
-  .bug-table thead {
-    background: rgba(102, 126, 234, 0.1);
-  }
+html.light-mode .bug-table thead {
+  background: rgba(102, 126, 234, 0.1);
+}
 
-  .bug-table th {
-    border-bottom-color: rgba(102, 126, 234, 0.3);
-  }
+html.light-mode .bug-table th {
+  border-bottom-color: rgba(102, 126, 234, 0.3);
+}
 
-  .bug-table tbody tr {
-    border-bottom-color: rgba(0, 0, 0, 0.05);
-  }
+html.light-mode .bug-table tbody tr {
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
 
-  .bug-table tbody tr:hover {
-    background: rgba(102, 126, 234, 0.05);
-  }
+html.light-mode .bug-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05);
+}
 
-  .pagination {
-    background: rgba(0, 0, 0, 0.02);
-  }
+html.light-mode .pagination {
+  background: rgba(0, 0, 0, 0.02);
+}
 
-  .pagination-button {
-    background: rgba(102, 126, 234, 0.1);
-    border-color: rgba(102, 126, 234, 0.2);
-  }
+html.light-mode .pagination-button {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.2);
+}
 
-  .pagination-button:hover:not(:disabled) {
-    background: rgba(102, 126, 234, 0.2);
-  }
+html.light-mode .pagination-button:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.2);
+}
 
-  .items-per-page select {
-    border-color: rgba(0, 0, 0, 0.2);
-    background: rgba(0, 0, 0, 0.02);
-  }
+html.light-mode .items-per-page select {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.02);
 }
