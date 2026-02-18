@@ -198,7 +198,7 @@ function Dashboard() {
 
   // Fetch benchmark data from STMO when benchmarks view becomes active
   useEffect(() => {
-    if (activeView !== 'benchmarks') return
+    if (activeView !== 'benchmarks' && activeView !== 'overview') return
     if (benchmarkRows.length > 0) return // already loaded
 
     async function loadBenchmarks() {
@@ -570,26 +570,8 @@ function Dashboard() {
 
       <div className="dashboard-content">
         {activeView === 'overview' && (
-          <div className="overview-grid">
-            <div className="chart-card">
-              <h3>Performance Impact Distribution</h3>
-              <div className="chart-container">
-                <Bar data={overviewBugData} options={impactBarOptions} onClick={handleImpactBarClick} />
-              </div>
-            </div>
-            <div className="chart-card">
-              <h3>Performance Trends</h3>
-              <div className="chart-container">
-                <Line data={benchmarkData} options={chartOptions} />
-              </div>
-            </div>
-            <div className="chart-card">
-              <h3>Bugs by Component</h3>
-              <div className="chart-container">
-                <Bar data={teamData} options={chartOptions} />
-              </div>
-            </div>
-            <div className="stats-card">
+          <div className="overview-layout">
+            <div className="stats-card stats-card-full">
               <h3>Quick Stats</h3>
               <div className="stats-grid">
                 <div className="stat-item">
@@ -615,6 +597,43 @@ function Dashboard() {
                 >
                   <span className="stat-value stat-value-priority">{priorityBugIds.length}</span>
                   <span className="stat-label">Priority Bugs</span>
+                </div>
+                {(() => {
+                  const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
+                  const delta = blendedRow?.delta_ytd
+                  if (delta == null) return null
+                  const colorClass = delta < 0 ? 'stat-value-delta-good' : delta > 0 ? 'stat-value-delta-bad' : ''
+                  const formatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + '%'
+                  return (
+                    <div
+                      className="stat-item stat-item-link"
+                      onClick={() => setActiveView('benchmarks')}
+                      title="Go to Benchmarks"
+                    >
+                      <span className={`stat-value ${colorClass}`}>{formatted}</span>
+                      <span className="stat-label">Applink</span>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+            <div className="overview-grid">
+              <div className="chart-card">
+                <h3>Performance Impact Distribution</h3>
+                <div className="chart-container">
+                  <Bar data={overviewBugData} options={impactBarOptions} onClick={handleImpactBarClick} />
+                </div>
+              </div>
+              <div className="chart-card">
+                <h3>Performance Trends</h3>
+                <div className="chart-container">
+                  <Line data={benchmarkData} options={chartOptions} />
+                </div>
+              </div>
+              <div className="chart-card">
+                <h3>Bugs by Component</h3>
+                <div className="chart-container">
+                  <Bar data={teamData} options={chartOptions} />
                 </div>
               </div>
             </div>
@@ -688,11 +707,11 @@ function Dashboard() {
                             <td className="benchmark-num">{row.start_value != null ? row.start_value.toFixed(0) : '—'}</td>
                             <td className="benchmark-num">{row.current_value != null ? row.current_value.toFixed(0) : '—'}</td>
                             <td className={`benchmark-num ${deltaYtdClass}`}>
-                              {deltaYtd != null ? (deltaYtd > 0 ? '+' : '') + deltaYtd.toFixed(0) : '—'}
+                              {deltaYtd != null ? (deltaYtd > 0 ? '+' : '') + deltaYtd.toFixed(2) + '%' : '—'}
                             </td>
                             <td className="benchmark-num">{row.current_value_chrome != null ? row.current_value_chrome.toFixed(0) : '—'}</td>
                             <td className={`benchmark-num ${deltaChromeClass}`}>
-                              {deltaChromeYtd != null ? (deltaChromeYtd > 0 ? '+' : '') + deltaChromeYtd.toFixed(0) : '—'}
+                              {deltaChromeYtd != null ? (deltaChromeYtd > 0 ? '+' : '') + deltaChromeYtd.toFixed(2) + '%' : '—'}
                             </td>
                           </tr>
                         )

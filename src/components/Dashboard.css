@@ -741,10 +741,20 @@
   width: 100%;
 }
 
+.overview-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
+}
+
+.stats-card-full {
+  width: 100%;
 }
 
 .view-container {
@@ -807,8 +817,8 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
 }
 
 .stat-item {
@@ -832,6 +842,14 @@
 
 .stat-value-priority {
   color: #a78bfa;
+}
+
+.stat-value-delta-good {
+  color: #4ade80;
+}
+
+.stat-value-delta-bad {
+  color: #f87171;
 }
 
 .stat-value {
@@ -861,7 +879,7 @@
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 }
 
