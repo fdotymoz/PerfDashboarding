@@ -61,6 +61,7 @@ function Dashboard() {
   const [benchmarkRows, setBenchmarkRows] = useState([])
   const [benchmarkLoading, setBenchmarkLoading] = useState(false)
   const [benchmarkError, setBenchmarkError] = useState(null)
+  const [benchmarkRefreshTick, setBenchmarkRefreshTick] = useState(0)
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -216,7 +217,7 @@ function Dashboard() {
     }
 
     loadBenchmarks()
-  }, [activeView])
+  }, [activeView, benchmarkRefreshTick])
 
   // Close tag filter dropdown when clicking outside
   useEffect(() => {
@@ -658,7 +659,7 @@ function Dashboard() {
                 <h3>Android Applink Startup — Platform Benchmarks</h3>
                 <button
                   className="refresh-button"
-                  onClick={() => { setBenchmarkRows([]); setBenchmarkError(null) }}
+                  onClick={() => { setBenchmarkRows([]); setBenchmarkError(null); setBenchmarkRefreshTick(t => t + 1) }}
                   disabled={benchmarkLoading}
                   title="Reload data from STMO"
                 >
