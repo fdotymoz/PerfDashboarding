@@ -3,7 +3,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
 import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds } from '../services/bugzillaService'
-import { fetchBenchmarkRows } from '../services/redashService'
+import { fetchBenchmarkRows, fetchSpeedometerRows } from '../services/redashService'
 import BugTable from './BugTable'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
@@ -62,6 +62,12 @@ function Dashboard() {
   const [benchmarkLoading, setBenchmarkLoading] = useState(false)
   const [benchmarkError, setBenchmarkError] = useState(null)
   const [benchmarkRefreshTick, setBenchmarkRefreshTick] = useState(0)
+
+  // Speedometer data from STMO query #96742
+  const [speedometerRows, setSpeedometerRows] = useState([])
+  const [speedometerLoading, setSpeedometerLoading] = useState(false)
+  const [speedometerError, setSpeedometerError] = useState(null)
+  const [speedometerRefreshTick, setSpeedometerRefreshTick] = useState(0)
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -218,6 +224,28 @@ function Dashboard() {
 
     loadBenchmarks()
   }, [activeView, benchmarkRefreshTick])
+
+  // Fetch Speedometer data from STMO when benchmarks or overview becomes active
+  useEffect(() => {
+    if (activeView !== 'benchmarks' && activeView !== 'overview') return
+    if (speedometerRows.length > 0) return // already loaded
+
+    async function loadSpeedometer() {
+      setSpeedometerLoading(true)
+      setSpeedometerError(null)
+      try {
+        const rows = await fetchSpeedometerRows()
+        setSpeedometerRows(rows)
+      } catch (err) {
+        setSpeedometerError(err.message)
+        console.error('Failed to fetch Speedometer data:', err)
+      } finally {
+        setSpeedometerLoading(false)
+      }
+    }
+
+    loadSpeedometer()
+  }, [activeView, speedometerRefreshTick])
 
   // Close tag filter dropdown when clicking outside
   useEffect(() => {
@@ -632,10 +660,26 @@ function Dashboard() {
                 </div>
               </div>
               <div className="chart-card">
-                <h3>Bugs by Component</h3>
-                <div className="chart-container">
-                  <Bar data={teamData} options={chartOptions} />
-                </div>
+                <h3>Speedometer 3 — Desktop</h3>
+                {speedometerLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
+                {!speedometerLoading && (() => {
+                  const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
+                  const latestRow = speedometerRows[speedometerRows.length - 1]
+                  if (!startRow || !latestRow) return <p className="chart-subtitle">No data available</p>
+                  const fxCurrent = latestRow.firefox_value_ma_desktop
+                  const chromeStart = startRow.chrome_value_ma_desktop
+                  const delta = fxCurrent && chromeStart ? 100 * (fxCurrent / chromeStart - 1) : null
+                  const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                  return (
+                    <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
+                      <span className={`overview-kpi-value ${colorClass}`}>
+                        {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+                      </span>
+                      <span className="overview-kpi-label">Fx vs Chrome Start</span>
+                      <span className="chart-subtitle" style={{marginTop: '8px'}}>{latestRow.push_date}</span>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>
@@ -653,7 +697,7 @@ function Dashboard() {
         )}
 
         {activeView === 'benchmarks' && (
-          <div className="view-container">
+          <div className="view-container" style={{flexDirection: 'column', width: '100%'}}>
             <div className="chart-card benchmark-card">
               <div className="perf-impact-header">
                 <h3>Android Applink Startup — Platform Benchmarks</h3>
@@ -734,6 +778,108 @@ function Dashboard() {
               {!benchmarkLoading && !benchmarkError && benchmarkRows.length === 0 && !benchmarkLoading && (
                 <div className="query-placeholder">
                   <p>No benchmark data available. Click Refresh to load.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Speedometer section */}
+            <div className="chart-card benchmark-card">
+              <div className="perf-impact-header">
+                <h3>Speedometer 3 — Desktop &amp; Android</h3>
+                <button
+                  className="refresh-button"
+                  onClick={() => { setSpeedometerRows([]); setSpeedometerError(null); setSpeedometerRefreshTick(t => t + 1) }}
+                  disabled={speedometerLoading}
+                  title="Reload data from STMO"
+                >
+                  ↻ Refresh
+                </button>
+              </div>
+              <p className="chart-subtitle">Source: STMO query #96742 — scores (higher is better); YTD from Jan 1, 2026</p>
+
+              {speedometerLoading && (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <p>Loading Speedometer data from STMO…</p>
+                </div>
+              )}
+
+              {speedometerError && !speedometerLoading && (
+                <div className="error-message">
+                  <p>Error loading Speedometer data: {speedometerError}</p>
+                </div>
+              )}
+
+              {!speedometerLoading && !speedometerError && speedometerRows.length > 0 && (() => {
+                const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
+                const latestRow = speedometerRows[speedometerRows.length - 1]
+                if (!startRow || !latestRow) return (
+                  <div className="query-placeholder"><p>Insufficient data to display YTD summary.</p></div>
+                )
+                const platforms = [
+                  {
+                    label: 'Desktop',
+                    fxStart: startRow.firefox_value_ma_desktop,
+                    fxCurrent: latestRow.firefox_value_ma_desktop,
+                    chromeStart: startRow.chrome_value_ma_desktop,
+                    chromeCurrent: latestRow.chrome_value_ma_desktop,
+                    deltaVsChromeCurrent: latestRow.pct_delta_ma_desktop,
+                  },
+                  {
+                    label: 'Android',
+                    fxStart: startRow.firefox_value_ma_android,
+                    fxCurrent: latestRow.firefox_value_ma_android,
+                    chromeStart: startRow.chrome_value_ma_android,
+                    chromeCurrent: latestRow.chrome_value_ma_android,
+                    deltaVsChromeCurrent: latestRow.pct_delta_ma_android,
+                  },
+                ].map(p => ({
+                  ...p,
+                  fxDeltaYtd: p.fxStart && p.fxCurrent ? 100 * (p.fxCurrent / p.fxStart - 1) : null,
+                  deltaVsChromeStart: p.fxCurrent && p.chromeStart ? 100 * (p.fxCurrent / p.chromeStart - 1) : null,
+                }))
+                // Speedometer: higher is better — positive delta = green, negative = red
+                const spClass = v => v == null ? '' : v > 0 ? 'delta-negative' : v < 0 ? 'delta-positive' : ''
+                const fmtDelta = v => v != null ? (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '—'
+                const fmtScore = v => v != null ? v.toFixed(2) : '—'
+                return (
+                  <div className="benchmark-table-wrapper">
+                    <table className="benchmark-table">
+                      <thead>
+                        <tr>
+                          <th>Platform</th>
+                          <th>Fx Start</th>
+                          <th>Fx Current</th>
+                          <th>Fx Delta YTD</th>
+                          <th>Chrome Start</th>
+                          <th>Chrome Current</th>
+                          <th>Fx vs Chrome Start</th>
+                          <th>Fx vs Chrome Current</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {platforms.map((p, i) => (
+                          <tr key={i}>
+                            <td className="benchmark-platform">{p.label}</td>
+                            <td className="benchmark-num">{fmtScore(p.fxStart)}</td>
+                            <td className="benchmark-num">{fmtScore(p.fxCurrent)}</td>
+                            <td className={`benchmark-num ${spClass(p.fxDeltaYtd)}`}>{fmtDelta(p.fxDeltaYtd)}</td>
+                            <td className="benchmark-num">{fmtScore(p.chromeStart)}</td>
+                            <td className="benchmark-num">{fmtScore(p.chromeCurrent)}</td>
+                            <td className={`benchmark-num ${spClass(p.deltaVsChromeStart)}`}>{fmtDelta(p.deltaVsChromeStart)}</td>
+                            <td className={`benchmark-num ${spClass(p.deltaVsChromeCurrent)}`}>{fmtDelta(p.deltaVsChromeCurrent)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="chart-subtitle" style={{marginTop: '8px'}}>Latest data: {latestRow.push_date}</p>
+                  </div>
+                )
+              })()}
+
+              {!speedometerLoading && !speedometerError && speedometerRows.length === 0 && (
+                <div className="query-placeholder">
+                  <p>No Speedometer data available. Click Refresh to load.</p>
                 </div>
               )}
             </div>

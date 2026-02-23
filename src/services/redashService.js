@@ -1,6 +1,8 @@
 const STMO_API_BASE = '/stmo'
 const QUERY_ID = 114368
 const API_KEY = 'cKVMGjZL9aDvrrBoHoqZNt9U0A9FEoE3lf4QYNa1'
+const SPEEDOMETER_QUERY_ID = 96742
+const SPEEDOMETER_API_KEY = 'EqdV6D5B2xQERYPNjrL0SEJMCPMzZ24nXZS8Phgw'
 const MAX_POLL_ATTEMPTS = 12
 const POLL_INTERVAL_MS = 5000
 
@@ -58,4 +60,45 @@ export async function fetchBenchmarkRows(snapshotDate = getTodayDate()) {
   }
 
   throw new Error('STMO query exceeded max poll attempts')
+}
+
+/**
+ * Fetch Speedometer daily time-series from STMO Redash query #96742.
+ * Returns rows: push_date, firefox_value_ma_desktop, chrome_value_ma_desktop,
+ *   pct_delta_ma_desktop, firefox_value_ma_android, chrome_value_ma_android, pct_delta_ma_android
+ * (plus raw daily columns)
+ */
+export async function fetchSpeedometerRows() {
+  const url = `${STMO_API_BASE}/api/queries/${SPEEDOMETER_QUERY_ID}/results?api_key=${SPEEDOMETER_API_KEY}`
+  const body = JSON.stringify({ max_age: 86400 })
+
+  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    })
+
+    if (!response.ok) {
+      throw new Error(`STMO API error: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    if (data.query_result) {
+      return data.query_result.data.rows || []
+    }
+
+    if (data.job) {
+      if (attempt < MAX_POLL_ATTEMPTS - 1) {
+        await sleep(POLL_INTERVAL_MS)
+        continue
+      }
+      throw new Error('STMO Speedometer query timed out waiting for results')
+    }
+
+    throw new Error('Unexpected STMO API response format')
+  }
+
+  throw new Error('STMO Speedometer query exceeded max poll attempts')
 }
