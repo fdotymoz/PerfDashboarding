@@ -24,7 +24,9 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Components, Priority Bugs (→ Priority tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
 - Performance Impact Distribution bar chart (clickable bars → navigate to relevant tab/query)
 - Performance Trends (line chart - mock data)
-- Component breakdown (bar chart)
+- **Speedometer 3 — Desktop** KPI tile: shows Fx vs Chrome Start % (Speedometer score, positive=green/good), links to Benchmarks tab
+- **Android Applink** KPI tile: shows BLENDED TOTAL Fx Delta YTD % (startup time, negative=green/good), links to Benchmarks tab
+- Speedometer and Applink KPI tiles are stacked vertically in a shared `overview-kpi-column` grid cell
 
 ### 2. Bug Tracking Tab
 - Bug severity visualization
@@ -59,12 +61,23 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
   - Toast notifications on add; state persisted to `priority_bug_ids` / `priority_bug_tags` in localStorage
 
 ### 5. Benchmarks Tab
-- Live data from STMO Redash query #114368 (Android Applink startup)
+Two tables stacked vertically:
+
+**Android Applink Startup** (STMO query #114368):
 - Spreadsheet-style table: Platform, Weight, Fx Start, Fx Current, Fx Delta YTD (%), Chrome Start, Chrome Current, Fx vs Chrome Start (%), Fx vs Chrome Current (%)
 - Delta columns color-coded: green = negative (improvement), red = positive (regression)
 - BLENDED TOTAL row bolded/highlighted (detected via `platform_label` containing "BLENDED")
 - POST-then-poll pattern via Vite proxy (`/stmo` → `https://sql.telemetry.mozilla.org`)
 - Refresh button uses `benchmarkRefreshTick` state to re-trigger the fetch useEffect
+- YTD start date: 2026-01-01
+
+**Speedometer 3 — Desktop & Android** (STMO query #96742):
+- Daily time-series fetched, summarized to Jan 1 vs latest date
+- Two rows: Desktop, Android
+- Columns: Platform, Fx Start, Fx Current, Fx Delta YTD, Chrome Start, Chrome Current, Fx vs Chrome Start, Fx vs Chrome Current
+- **Inverted color coding**: positive = green (higher score = better), negative = red
+- Shows "Latest data: YYYY-MM-DD" footer
+- Refresh button uses `speedometerRefreshTick` state
 
 ### 6. Components Tab
 - **Top 10 components** with any performance impact
@@ -155,8 +168,10 @@ src/
 ### `redashService.js`
 
 - `fetchBenchmarkRows(snapshotDate)` - POST to STMO query #114368 with date param, polls until result ready
-- Proxied via Vite: `/stmo` → `https://sql.telemetry.mozilla.org`
-- Returns rows: `platform_label, platform_weight, start_value, current_value, delta_ytd, start_value_chrome, delta_ytd_chrome, current_value_chrome, delta_to_chrome_ytd`
+- `fetchSpeedometerRows()` - POST to STMO query #96742 (no date param), returns full daily time-series
+- Both proxied via Vite: `/stmo` → `https://sql.telemetry.mozilla.org`
+- Applink rows: `platform_label, platform_weight, start_value, current_value, delta_ytd, start_value_chrome, delta_ytd_chrome, current_value_chrome, delta_to_chrome_ytd`
+- Speedometer rows: `push_date, firefox_value_ma_desktop, chrome_value_ma_desktop, pct_delta_ma_desktop, firefox_value_ma_android, chrome_value_ma_android, pct_delta_ma_android` (plus raw daily columns)
 
 ### `cache.js`
 
@@ -197,8 +212,8 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 - [ ] Add filtering and sorting options
 
 ### Data Sources
-- [x] Connect real benchmark data — STMO Redash query #114368
-- [ ] Add additional STMO queries / metrics
+- [x] Connect real benchmark data — STMO Redash query #114368 (Android Applink)
+- [x] Add Speedometer 3 data — STMO Redash query #96742 (Desktop & Android)
 - [ ] Implement time-series data for trends (Benchmarks tab Performance Trends chart is still mock data)
 
 ### Features to Add
@@ -275,6 +290,6 @@ Check console logs for "Cache HIT" or "Cache MISS". Click refresh button to clea
 
 ---
 
-**Last Updated**: 2026-02-18
+**Last Updated**: 2026-02-23
 **Version**: MVP (0.1.0)
 **Status**: Active Development
