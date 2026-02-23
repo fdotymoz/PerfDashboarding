@@ -850,6 +850,12 @@ html.light-mode .query-placeholder {
   color: #f87171;
 }
 
+.overview-kpi-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .overview-kpi-tile {
   display: flex;
   flex-direction: column;

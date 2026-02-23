@@ -659,27 +659,46 @@ function Dashboard() {
                   <Line data={benchmarkData} options={chartOptions} />
                 </div>
               </div>
-              <div className="chart-card">
-                <h3>Speedometer 3 — Desktop</h3>
-                {speedometerLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
-                {!speedometerLoading && (() => {
-                  const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
-                  const latestRow = speedometerRows[speedometerRows.length - 1]
-                  if (!startRow || !latestRow) return <p className="chart-subtitle">No data available</p>
-                  const fxCurrent = latestRow.firefox_value_ma_desktop
-                  const chromeStart = startRow.chrome_value_ma_desktop
-                  const delta = fxCurrent && chromeStart ? 100 * (fxCurrent / chromeStart - 1) : null
-                  const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
-                  return (
-                    <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
-                      <span className={`overview-kpi-value ${colorClass}`}>
-                        {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
-                      </span>
-                      <span className="overview-kpi-label">Fx vs Chrome Start</span>
-                      <span className="chart-subtitle" style={{marginTop: '8px'}}>{latestRow.push_date}</span>
-                    </div>
-                  )
-                })()}
+              <div className="overview-kpi-column">
+                <div className="chart-card">
+                  <h3>Speedometer 3 — Desktop</h3>
+                  {speedometerLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
+                  {!speedometerLoading && (() => {
+                    const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
+                    const latestRow = speedometerRows[speedometerRows.length - 1]
+                    if (!startRow || !latestRow) return <p className="chart-subtitle">No data available</p>
+                    const fxCurrent = latestRow.firefox_value_ma_desktop
+                    const chromeStart = startRow.chrome_value_ma_desktop
+                    const delta = fxCurrent && chromeStart ? 100 * (fxCurrent / chromeStart - 1) : null
+                    const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                    return (
+                      <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
+                        <span className={`overview-kpi-value ${colorClass}`}>
+                          {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+                        </span>
+                        <span className="overview-kpi-label">Fx vs Chrome Start</span>
+                        <span className="chart-subtitle" style={{marginTop: '8px'}}>{latestRow.push_date}</span>
+                      </div>
+                    )
+                  })()}
+                </div>
+                <div className="chart-card">
+                  <h3>Android Applink</h3>
+                  {benchmarkLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
+                  {!benchmarkLoading && (() => {
+                    const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
+                    const delta = blendedRow?.delta_ytd
+                    const colorClass = delta == null ? '' : delta < 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                    return (
+                      <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
+                        <span className={`overview-kpi-value ${colorClass}`}>
+                          {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+                        </span>
+                        <span className="overview-kpi-label">Fx Delta YTD</span>
+                      </div>
+                    )
+                  })()}
+                </div>
               </div>
             </div>
           </div>
