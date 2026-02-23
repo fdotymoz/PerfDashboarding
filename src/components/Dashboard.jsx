@@ -690,19 +690,24 @@ function Dashboard() {
                         <th>Weight</th>
                         <th>Fx Start</th>
                         <th>Fx Current</th>
-                        <th>Delta YTD</th>
+                        <th>Fx Delta YTD</th>
+                        <th>Chrome Start</th>
                         <th>Chrome Current</th>
-                        <th>Delta to Chrome YTD</th>
+                        <th>Fx vs Chrome Start</th>
+                        <th>Fx vs Chrome Current</th>
                       </tr>
                     </thead>
                     <tbody>
                       {benchmarkRows.map((row, i) => {
                         const deltaYtd = row.delta_ytd
+                        const deltaYtdChrome = row.delta_ytd_chrome
                         const deltaChromeYtd = row.delta_to_chrome_ytd
                         const deltaYtdClass = deltaYtd == null ? '' : deltaYtd < 0 ? 'delta-negative' : deltaYtd > 0 ? 'delta-positive' : ''
+                        const deltaYtdChromeClass = deltaYtdChrome == null ? '' : deltaYtdChrome < 0 ? 'delta-negative' : deltaYtdChrome > 0 ? 'delta-positive' : ''
                         const deltaChromeClass = deltaChromeYtd == null ? '' : deltaChromeYtd < 0 ? 'delta-negative' : deltaChromeYtd > 0 ? 'delta-positive' : ''
+                        const isTotal = row.platform_label?.toUpperCase().includes('BLENDED')
                         return (
-                          <tr key={i} className={i === 0 ? 'benchmark-row-total' : ''}>
+                          <tr key={i} className={isTotal ? 'benchmark-row-total' : ''}>
                             <td className="benchmark-platform">{row.platform_label}</td>
                             <td className="benchmark-num">{row.platform_weight != null ? row.platform_weight : '—'}</td>
                             <td className="benchmark-num">{row.start_value != null ? row.start_value.toFixed(0) : '—'}</td>
@@ -710,7 +715,11 @@ function Dashboard() {
                             <td className={`benchmark-num ${deltaYtdClass}`}>
                               {deltaYtd != null ? (deltaYtd > 0 ? '+' : '') + deltaYtd.toFixed(2) + '%' : '—'}
                             </td>
+                            <td className="benchmark-num">{row.start_value_chrome != null ? row.start_value_chrome.toFixed(0) : '—'}</td>
                             <td className="benchmark-num">{row.current_value_chrome != null ? row.current_value_chrome.toFixed(0) : '—'}</td>
+                            <td className={`benchmark-num ${deltaYtdChromeClass}`}>
+                              {deltaYtdChrome != null ? (deltaYtdChrome > 0 ? '+' : '') + deltaYtdChrome.toFixed(2) + '%' : '—'}
+                            </td>
                             <td className={`benchmark-num ${deltaChromeClass}`}>
                               {deltaChromeYtd != null ? (deltaChromeYtd > 0 ? '+' : '') + deltaChromeYtd.toFixed(2) + '%' : '—'}
                             </td>

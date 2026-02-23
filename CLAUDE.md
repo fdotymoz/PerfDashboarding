@@ -60,9 +60,9 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 
 ### 5. Benchmarks Tab
 - Live data from STMO Redash query #114368 (Android Applink startup)
-- Spreadsheet-style table: Platform, Weight, Fx Start, Fx Current, Delta YTD (%), Chrome Current, Delta to Chrome YTD (%)
+- Spreadsheet-style table: Platform, Weight, Fx Start, Fx Current, Fx Delta YTD (%), Chrome Start, Chrome Current, Fx vs Chrome Start (%), Fx vs Chrome Current (%)
 - Delta columns color-coded: green = negative (improvement), red = positive (regression)
-- BLENDED TOTAL row bolded/highlighted
+- BLENDED TOTAL row bolded/highlighted (detected via `platform_label` containing "BLENDED")
 - POST-then-poll pattern via Vite proxy (`/stmo` → `https://sql.telemetry.mozilla.org`)
 - Refresh button uses `benchmarkRefreshTick` state to re-trigger the fetch useEffect
 
@@ -156,7 +156,7 @@ src/
 
 - `fetchBenchmarkRows(snapshotDate)` - POST to STMO query #114368 with date param, polls until result ready
 - Proxied via Vite: `/stmo` → `https://sql.telemetry.mozilla.org`
-- Returns rows: `platform_label, platform_weight, start_value, current_value, delta_ytd, current_value_chrome, delta_to_chrome_ytd`
+- Returns rows: `platform_label, platform_weight, start_value, current_value, delta_ytd, start_value_chrome, delta_ytd_chrome, current_value_chrome, delta_to_chrome_ytd`
 
 ### `cache.js`
 
