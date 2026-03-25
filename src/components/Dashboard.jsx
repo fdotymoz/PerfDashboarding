@@ -45,6 +45,11 @@ function Dashboard() {
   const [sp3BugsError, setSp3BugsError] = useState(null)
   const [sp3RefreshTick, setSp3RefreshTick] = useState(0)
 
+  // Priority tracking history: { 'YYYY-MM-DD': { sp3: N, priority: N }, ... }
+  const [priorityTrackingHistory, setPriorityTrackingHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('priority_tracking_history')) || {} } catch { return {} }
+  })
+
   // Priority Bugs subsection state (persisted to localStorage)
   const [priorityBugInput, setPriorityBugInput] = useState('')
   const [priorityBugIds, setPriorityBugIds] = useState(() => {
@@ -260,7 +265,7 @@ function Dashboard() {
 
   // Fetch Speedometer 3 priority bugs from meta bug 2026188
   useEffect(() => {
-    if (activeView !== 'perfpriority' || perfPrioritySubsection !== 'speedometer3') return
+    if (activeView !== 'overview' && (activeView !== 'perfpriority' || perfPrioritySubsection !== 'speedometer3')) return
     if (sp3Bugs.length > 0) return // already loaded
     async function loadSp3Bugs() {
       setSp3BugsLoading(true)
@@ -268,6 +273,12 @@ function Dashboard() {
       try {
         const bugs = await fetchSpeedometer3Bugs()
         setSp3Bugs(bugs)
+        const today = new Date().toISOString().split('T')[0]
+        setPriorityTrackingHistory(prev => {
+          const updated = { ...prev, [today]: { sp3: bugs.length, priority: priorityBugIds.length } }
+          localStorage.setItem('priority_tracking_history', JSON.stringify(updated))
+          return updated
+        })
       } catch (err) {
         setSp3BugsError(err.message)
         console.error('Failed to fetch Speedometer 3 bugs:', err)
@@ -502,15 +513,30 @@ function Dashboard() {
   }
 
   // Sample data for benchmark scores
-  const benchmarkData = {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-    datasets: [{
-      label: 'Performance Score',
-      data: [85, 88, 92, 90],
-      borderColor: 'rgb(75, 192, 192)',
-      backgroundColor: 'rgba(75, 192, 192, 0.2)',
-      tension: 0.4,
-    }],
+  const priorityTrackingEntries = Object.entries(priorityTrackingHistory)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-30)
+
+  const priorityTrackingData = {
+    labels: priorityTrackingEntries.map(([date]) => date),
+    datasets: [
+      {
+        label: 'Priority SP3',
+        data: priorityTrackingEntries.map(([, v]) => v.sp3),
+        borderColor: 'rgb(251, 191, 36)',
+        backgroundColor: 'rgba(251, 191, 36, 0.15)',
+        tension: 0.3,
+        pointRadius: 4,
+      },
+      {
+        label: 'Priority Bugs',
+        data: priorityTrackingEntries.map(([, v]) => v.priority),
+        borderColor: 'rgb(102, 126, 234)',
+        backgroundColor: 'rgba(102, 126, 234, 0.15)',
+        tension: 0.3,
+        pointRadius: 4,
+      },
+    ],
   }
 
   // Prepare team/component data from performance impact bugs
@@ -676,9 +702,13 @@ function Dashboard() {
                   <span className="stat-value">{bugStats?.closed || 0}</span>
                   <span className="stat-label">Closed Bugs</span>
                 </div>
-                <div className="stat-item">
-                  <span className="stat-value">{Object.keys(componentCounts).length}</span>
-                  <span className="stat-label">Components</span>
+                <div
+                  className="stat-item stat-item-link"
+                  onClick={() => { setActiveView('perfpriority'); setPerfPrioritySubsection('speedometer3') }}
+                  title="Go to Speedometer 3 Priority Bugs"
+                >
+                  <span className="stat-value">{sp3Bugs.length}</span>
+                  <span className="stat-label">Priority SP3</span>
                 </div>
                 <div
                   className="stat-item stat-item-link"
@@ -715,9 +745,12 @@ function Dashboard() {
                 </div>
               </div>
               <div className="chart-card">
-                <h3>Performance Trends</h3>
+                <h3>Priority Tracking</h3>
                 <div className="chart-container">
-                  <Line data={benchmarkData} options={chartOptions} />
+                  {priorityTrackingEntries.length > 0
+                    ? <Line data={priorityTrackingData} options={chartOptions} />
+                    : <p className="chart-subtitle" style={{textAlign:'center', marginTop:'60px'}}>No history yet — data will appear after today's first load.</p>
+                  }
                 </div>
               </div>
               <div className="overview-kpi-column">
