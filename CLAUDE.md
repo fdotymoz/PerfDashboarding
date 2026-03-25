@@ -21,11 +21,14 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 ## Current Features
 
 ### 1. Overview Tab
-- **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Components, Priority Bugs (→ Priority tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
+- **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Priority SP3 (→ Priority tab Speedometer 3 subsection), Priority Bugs (→ Priority tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
+  - **Priority SP3** tile shows the count of bugs from meta bug #2026188; fetched on Overview load
 - Performance Impact Distribution bar chart (clickable bars → navigate to relevant tab/query)
-- Performance Trends (line chart - mock data)
+- **Priority Tracking** line chart: plots daily snapshots of Priority SP3 and Priority Bugs counts; up to 30 days; persisted to `localStorage` under `priority_tracking_history`; populated when SP3 bugs load
 - **Speedometer 3 — Desktop** KPI tile: shows Fx vs Chrome Start % (Speedometer score, positive=green/good), links to Benchmarks tab
+  - Shows `▲/▼ Xpp` change indicator vs. previous fetch (persisted to `localStorage` under `perf_kpi_prev`)
 - **Android Applink** KPI tile: shows BLENDED TOTAL Fx Delta YTD % (startup time, negative=green/good), links to Benchmarks tab
+  - Shows `▲/▼ Xpp` change indicator vs. previous fetch (same `perf_kpi_prev` key)
 - Speedometer and Applink KPI tiles are stacked vertically in a shared `overview-kpi-column` grid cell
 
 ### 2. Bug Tracking Tab
@@ -49,7 +52,11 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - **Limit**: Up to 1,000 bugs per query
 
 ### 4. Performance Priority Tab
-- **Speedometer 3** subsection (query TBD — placeholder)
+- **Speedometer 3** subsection:
+  - Loads bugs from meta bug **#2026188** (`depends_on` list) via `fetchSpeedometer3Bugs()`
+  - Displays in `BugTable` with pagination; fetched lazily on first view (cached 5 min)
+  - "Meta Bug #2026188 ↗" link + Refresh button in header
+  - Also fetched on Overview load to populate the Priority SP3 Quick Stats tile
 - **Android Applink** subsection (query TBD — placeholder)
 - **Priority Bugs** subsection:
   - Manually enter bug numbers (comma/space separated, Enter key support)
@@ -160,6 +167,9 @@ src/
 - `fetchBugs(params)` - Generic bug fetcher with field optimization
 - `fetchBugsByPerformanceImpact(impactLevel, params, useCache)` - Performance impact query
 - `fetchAllPerformanceImpactBugs(params, useCache)` - All impact levels
+- `fetchBugsByIds(bugIds, useCache)` - Fetch specific bugs by ID array
+- `fetchDependsOnIds(bugId)` - Fetch the `depends_on` list from a meta bug
+- `fetchSpeedometer3Bugs(useCache)` - Fetches bugs from meta bug #2026188 via depends_on; cache key `speedometer3-meta-2026188`
 - `groupBugsBySeverity(bugs)` - Group bugs by S1/S2/S3/S4
 - `groupBugsByComponent(bugs)` - Count bugs per component
 - `getBugStats(bugs)` - Calculate open/closed/total stats
@@ -206,15 +216,14 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 ## Next Steps / TODOs
 
 ### Performance Priority Queries (Immediate)
-- [ ] Define Bugzilla query for **Speedometer 3** bugs
+- [x] Speedometer 3 bugs — meta bug #2026188 (`depends_on` list)
 - [ ] Define Bugzilla query for **Android Applink** bugs
-- [ ] Implement table/chart views for each subsection
-- [ ] Add filtering and sorting options
+- [ ] Add filtering and sorting options to Speedometer 3 / Applink subsections
 
 ### Data Sources
 - [x] Connect real benchmark data — STMO Redash query #114368 (Android Applink)
 - [x] Add Speedometer 3 data — STMO Redash query #96742 (Desktop & Android)
-- [ ] Implement time-series data for trends (Benchmarks tab Performance Trends chart is still mock data)
+- [x] Priority Tracking chart — daily localStorage snapshots of SP3 and Priority bug counts
 
 ### Features to Add
 - [ ] Date range filters (last week/month/quarter)
@@ -254,7 +263,11 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 ### Cache Strategy
 - TTL: 5 minutes (300,000ms)
 - Storage: In-memory (cleared on page refresh)
-- Alternative: localStorage for persistence
+- **localStorage persistence** (survives refresh):
+  - `perf_kpi_prev` — previous KPI values for Overview change indicators (`speedometerDesktop.value`, `androidApplink.value`)
+  - `priority_tracking_history` — daily snapshots `{ 'YYYY-MM-DD': { sp3: N, priority: N } }` for Priority Tracking chart; clear with `localStorage.removeItem('priority_tracking_history')`
+  - `priority_bug_ids` / `priority_bug_tags` — Priority Bugs subsection state
+  - `darkMode` — theme toggle state
 
 ### Theme System
 - Default: dark mode
@@ -290,6 +303,6 @@ Check console logs for "Cache HIT" or "Cache MISS". Click refresh button to clea
 
 ---
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-03-25
 **Version**: MVP (0.1.0)
 **Status**: Active Development
