@@ -443,6 +443,31 @@
   cursor: not-allowed;
 }
 
+.meta-bug-link {
+  font-size: 0.85rem;
+  color: #667eea;
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid #667eea;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.meta-bug-link:hover {
+  background: #667eea;
+  color: #fff;
+}
+
+html.light-mode .meta-bug-link {
+  color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+html.light-mode .meta-bug-link:hover {
+  background: #4f46e5;
+  color: #fff;
+}
+
 .toast-container {
   position: fixed;
   bottom: 24px;
@@ -877,6 +902,21 @@ html.light-mode .query-placeholder {
   font-size: 0.95rem;
   color: #a0aec0;
   margin-top: 6px;
+}
+
+.overview-kpi-change {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+.kpi-change-good {
+  color: #48bb78;
+}
+
+.kpi-change-bad {
+  color: #fc8181;
 }
 
 .stat-value {

@@ -246,6 +246,38 @@ export async function fetchBugsByIds(bugIds, useCache = true) {
 }
 
 /**
+ * Fetch the depends_on bug IDs from a meta bug.
+ * @param {number|string} bugId - The meta bug ID
+ * @returns {Promise<Array<number>>} Array of bug IDs this bug depends on
+ */
+export async function fetchDependsOnIds(bugId) {
+  const apiKey = getApiKey();
+  const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : '';
+  const url = `${BUGZILLA_API_BASE}/bug/${bugId}?include_fields=id,depends_on${keyParam}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Bugzilla API error: ${response.status}`);
+  const data = await response.json();
+  return data.bugs?.[0]?.depends_on || [];
+}
+
+/**
+ * Fetch all bugs tracked under the Speedometer 3 meta bug (bug 2026188).
+ * @param {boolean} useCache - Whether to use cache (default: true)
+ * @returns {Promise<Array>} Array of bug objects
+ */
+export async function fetchSpeedometer3Bugs(useCache = true) {
+  const META_BUG_ID = 2026188;
+  const doFetch = async () => {
+    const depIds = await fetchDependsOnIds(META_BUG_ID);
+    if (depIds.length === 0) return [];
+    return fetchBugsByIds(depIds, false);
+  };
+  if (!useCache) return doFetch();
+  const cacheKey = `speedometer3-meta-${META_BUG_ID}`;
+  return cachedFetch(cacheKey, doFetch);
+}
+
+/**
  * Clear cache for performance impact bugs
  * @param {string} impactLevel - Optional specific impact level to clear
  */

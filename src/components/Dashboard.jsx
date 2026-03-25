@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds } from '../services/bugzillaService'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchSpeedometer3Bugs } from '../services/bugzillaService'
 import { fetchBenchmarkRows, fetchSpeedometerRows } from '../services/redashService'
 import BugTable from './BugTable'
 
@@ -39,6 +39,12 @@ function Dashboard() {
   // Performance Priority subsection state
   const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('speedometer3')
 
+  // Speedometer 3 subsection bugs (from meta bug 2026188)
+  const [sp3Bugs, setSp3Bugs] = useState([])
+  const [sp3BugsLoading, setSp3BugsLoading] = useState(false)
+  const [sp3BugsError, setSp3BugsError] = useState(null)
+  const [sp3RefreshTick, setSp3RefreshTick] = useState(0)
+
   // Priority Bugs subsection state (persisted to localStorage)
   const [priorityBugInput, setPriorityBugInput] = useState('')
   const [priorityBugIds, setPriorityBugIds] = useState(() => {
@@ -68,6 +74,11 @@ function Dashboard() {
   const [speedometerLoading, setSpeedometerLoading] = useState(false)
   const [speedometerError, setSpeedometerError] = useState(null)
   const [speedometerRefreshTick, setSpeedometerRefreshTick] = useState(0)
+
+  // Previous KPI snapshot from localStorage (captured at mount, before this session's fetch)
+  const [prevKpiValues] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('perf_kpi_prev')) || {} } catch { return {} }
+  })
 
   // Fetch bugs on component mount or when config changes
   useEffect(() => {
@@ -246,6 +257,56 @@ function Dashboard() {
 
     loadSpeedometer()
   }, [activeView, speedometerRefreshTick])
+
+  // Fetch Speedometer 3 priority bugs from meta bug 2026188
+  useEffect(() => {
+    if (activeView !== 'perfpriority' || perfPrioritySubsection !== 'speedometer3') return
+    if (sp3Bugs.length > 0) return // already loaded
+    async function loadSp3Bugs() {
+      setSp3BugsLoading(true)
+      setSp3BugsError(null)
+      try {
+        const bugs = await fetchSpeedometer3Bugs()
+        setSp3Bugs(bugs)
+      } catch (err) {
+        setSp3BugsError(err.message)
+        console.error('Failed to fetch Speedometer 3 bugs:', err)
+      } finally {
+        setSp3BugsLoading(false)
+      }
+    }
+    loadSp3Bugs()
+  }, [activeView, perfPrioritySubsection, sp3RefreshTick])
+
+  // Persist current Speedometer Desktop KPI value to localStorage when data updates
+  useEffect(() => {
+    if (speedometerRows.length === 0) return
+    const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
+    const latestRow = speedometerRows[speedometerRows.length - 1]
+    if (!startRow || !latestRow) return
+    const fxCurrent = latestRow.firefox_value_ma_desktop
+    const chromeStart = startRow.chrome_value_ma_desktop
+    if (!fxCurrent || !chromeStart) return
+    const delta = 100 * (fxCurrent / chromeStart - 1)
+    const prev = JSON.parse(localStorage.getItem('perf_kpi_prev')) || {}
+    localStorage.setItem('perf_kpi_prev', JSON.stringify({
+      ...prev,
+      speedometerDesktop: { value: delta, date: latestRow.push_date, savedAt: Date.now() }
+    }))
+  }, [speedometerRows])
+
+  // Persist current Android Applink KPI value to localStorage when data updates
+  useEffect(() => {
+    if (benchmarkRows.length === 0) return
+    const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
+    const delta = blendedRow?.delta_ytd
+    if (delta == null) return
+    const prev = JSON.parse(localStorage.getItem('perf_kpi_prev')) || {}
+    localStorage.setItem('perf_kpi_prev', JSON.stringify({
+      ...prev,
+      androidApplink: { value: delta, savedAt: Date.now() }
+    }))
+  }, [benchmarkRows])
 
   // Close tag filter dropdown when clicking outside
   useEffect(() => {
@@ -671,13 +732,20 @@ function Dashboard() {
                     const chromeStart = startRow.chrome_value_ma_desktop
                     const delta = fxCurrent && chromeStart ? 100 * (fxCurrent / chromeStart - 1) : null
                     const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                    const prevVal = prevKpiValues.speedometerDesktop?.value
+                    const change = delta != null && prevVal != null ? delta - prevVal : null
                     return (
                       <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
                         <span className={`overview-kpi-value ${colorClass}`}>
                           {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
                         </span>
                         <span className="overview-kpi-label">Fx vs Chrome Start</span>
-                        <span className="chart-subtitle" style={{marginTop: '8px'}}>{latestRow.push_date}</span>
+                        {change != null && Math.abs(change) >= 0.01 && (
+                          <span className={`overview-kpi-change ${change > 0 ? 'kpi-change-good' : 'kpi-change-bad'}`}>
+                            {change > 0 ? '▲' : '▼'} {change > 0 ? '+' : ''}{change.toFixed(2)}pp
+                          </span>
+                        )}
+                        <span className="chart-subtitle" style={{marginTop: '4px'}}>{latestRow.push_date}</span>
                       </div>
                     )
                   })()}
@@ -689,12 +757,19 @@ function Dashboard() {
                     const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
                     const delta = blendedRow?.delta_ytd
                     const colorClass = delta == null ? '' : delta < 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                    const prevVal = prevKpiValues.androidApplink?.value
+                    const change = delta != null && prevVal != null ? delta - prevVal : null
                     return (
                       <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
                         <span className={`overview-kpi-value ${colorClass}`}>
                           {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
                         </span>
                         <span className="overview-kpi-label">Fx Delta YTD</span>
+                        {change != null && Math.abs(change) >= 0.01 && (
+                          <span className={`overview-kpi-change ${change < 0 ? 'kpi-change-good' : 'kpi-change-bad'}`}>
+                            {change < 0 ? '▼' : '▲'} {change > 0 ? '+' : ''}{change.toFixed(2)}pp
+                          </span>
+                        )}
                       </div>
                     )
                   })()}
@@ -1031,13 +1106,48 @@ function Dashboard() {
             <div className="subsection-content">
               {perfPrioritySubsection === 'speedometer3' && (
                 <div className="priority-section">
-                  <h3>Speedometer 3</h3>
-                  <p className="placeholder-text">
-                    Bugzilla query will be defined here for Speedometer 3 performance issues.
-                  </p>
-                  <div className="query-placeholder">
-                    <p>📊 Query configuration pending...</p>
+                  <div className="perf-impact-header">
+                    <h3>Speedometer 3</h3>
+                    <div className="perf-impact-controls">
+                      <a
+                        href="https://bugzilla.mozilla.org/show_bug.cgi?id=2026188"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="meta-bug-link"
+                        title="Open meta bug 2026188"
+                      >
+                        Meta Bug #2026188 ↗
+                      </a>
+                      <button
+                        className="refresh-button"
+                        onClick={() => { setSp3Bugs([]); setSp3BugsError(null); setSp3RefreshTick(t => t + 1) }}
+                        disabled={sp3BugsLoading}
+                        title="Refresh data (clears cache)"
+                      >
+                        ↻ Refresh
+                      </button>
+                    </div>
                   </div>
+
+                  {sp3BugsLoading && (
+                    <div className="loading-container">
+                      <div className="loading-spinner"></div>
+                      <p>Loading bugs from meta bug #2026188…</p>
+                    </div>
+                  )}
+                  {sp3BugsError && !sp3BugsLoading && (
+                    <div className="error-message">
+                      <p>Error: {sp3BugsError}</p>
+                    </div>
+                  )}
+                  {!sp3BugsLoading && !sp3BugsError && sp3Bugs.length > 0 && (
+                    <BugTable bugs={sp3Bugs} />
+                  )}
+                  {!sp3BugsLoading && !sp3BugsError && sp3Bugs.length === 0 && (
+                    <div className="query-placeholder">
+                      <p>No bugs found under meta bug #2026188.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
