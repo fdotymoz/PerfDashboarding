@@ -20,7 +20,11 @@
       "Bash(curl:*)",
       "Bash(sudo tee:*)",
       "Bash(sudo apt update:*)",
-      "Bash(sudo apt install:*)"
+      "Bash(sudo apt install:*)",
+      "Bash(pkill:*)",
+      "Bash(npm --prefix /mnt/d/Projects/PerfDashboarding run dev)",
+      "Bash(git:*)",
+      "Bash(npm test:*)"
     ]
   }
 }
