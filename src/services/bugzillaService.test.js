@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { groupBugsBySeverity, groupBugsByComponent, getBugStats } from './bugzillaService'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { groupBugsBySeverity, groupBugsByComponent, getBugStats, clearPerformanceImpactCache } from './bugzillaService'
+import { setCache, getCached, clearAllCache } from '../utils/cache'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -181,5 +182,44 @@ describe('getBugStats', () => {
   it('assigns "Unknown" priority for bugs with missing priority', () => {
     const result = getBugStats([makeBug({ priority: undefined })])
     expect(result.byPriority['Unknown']).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// clearPerformanceImpactCache
+// The actual cache keys produced by fetchBugsByPerformanceImpact are of the
+// form "perf-impact:impactLevel=high" (via generateCacheKey). The no-argument
+// path used to clear hardcoded strings like "perf-impact:high" which never
+// matched, silently leaving stale data in the cache.
+// ---------------------------------------------------------------------------
+describe('clearPerformanceImpactCache', () => {
+  // The exact keys that fetchBugsByPerformanceImpact writes
+  const HIGH_KEY   = 'perf-impact:impactLevel=high'
+  const MEDIUM_KEY = 'perf-impact:impactLevel=medium'
+  const LOW_KEY    = 'perf-impact:impactLevel=low'
+
+  beforeEach(() => clearAllCache())
+
+  it('clears the correct key when called with a specific impact level', () => {
+    setCache(HIGH_KEY, ['bug1'])
+    clearPerformanceImpactCache('high')
+    expect(getCached(HIGH_KEY)).toBeNull()
+  })
+
+  it('leaves other levels untouched when clearing a specific level', () => {
+    setCache(HIGH_KEY, ['bug1'])
+    setCache(MEDIUM_KEY, ['bug2'])
+    clearPerformanceImpactCache('high')
+    expect(getCached(MEDIUM_KEY)).toEqual(['bug2'])
+  })
+
+  it('clears all three impact levels when called with no argument', () => {
+    setCache(HIGH_KEY,   ['bug1'])
+    setCache(MEDIUM_KEY, ['bug2'])
+    setCache(LOW_KEY,    ['bug3'])
+    clearPerformanceImpactCache()
+    expect(getCached(HIGH_KEY)).toBeNull()
+    expect(getCached(MEDIUM_KEY)).toBeNull()
+    expect(getCached(LOW_KEY)).toBeNull()
   })
 })

@@ -283,12 +283,10 @@ export async function fetchSpeedometer3Bugs(useCache = true) {
  */
 export function clearPerformanceImpactCache(impactLevel = null) {
   if (impactLevel) {
-    const cacheKey = generateCacheKey('perf-impact', { impactLevel });
-    clearCache(cacheKey);
+    clearCache(generateCacheKey('perf-impact', { impactLevel }));
   } else {
-    // Clear all perf-impact caches
-    clearCache('perf-impact:high');
-    clearCache('perf-impact:medium');
-    clearCache('perf-impact:low');
+    clearCache(generateCacheKey('perf-impact', { impactLevel: 'high' }));
+    clearCache(generateCacheKey('perf-impact', { impactLevel: 'medium' }));
+    clearCache(generateCacheKey('perf-impact', { impactLevel: 'low' }));
   }
 }
