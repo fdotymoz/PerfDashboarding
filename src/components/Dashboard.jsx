@@ -289,7 +289,9 @@ function Dashboard() {
     loadSp3Bugs()
   }, [activeView, perfPrioritySubsection, sp3RefreshTick])
 
-  // Persist current Speedometer Desktop KPI value to localStorage when data updates
+  // Persist current Speedometer Desktop KPI value to localStorage when data updates.
+  // Only save when the underlying data date changes so that prevKpiValues (captured at mount)
+  // always reflects the last *different* data point and the change indicator is meaningful.
   useEffect(() => {
     if (speedometerRows.length === 0) return
     const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
@@ -300,22 +302,28 @@ function Dashboard() {
     if (!fxCurrent || !chromeStart) return
     const delta = 100 * (fxCurrent / chromeStart - 1)
     const prev = JSON.parse(localStorage.getItem('perf_kpi_prev')) || {}
+    // Only overwrite when the data date is newer than what's already stored
+    if (prev.speedometerDesktop?.date === latestRow.push_date) return
     localStorage.setItem('perf_kpi_prev', JSON.stringify({
       ...prev,
       speedometerDesktop: { value: delta, date: latestRow.push_date, savedAt: Date.now() }
     }))
   }, [speedometerRows])
 
-  // Persist current Android Applink KPI value to localStorage when data updates
+  // Persist current Android Applink KPI value to localStorage when data updates.
+  // Only save once per calendar day so that the previous value is preserved across reloads.
   useEffect(() => {
     if (benchmarkRows.length === 0) return
     const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
     const delta = blendedRow?.delta_ytd
     if (delta == null) return
     const prev = JSON.parse(localStorage.getItem('perf_kpi_prev')) || {}
+    const today = new Date().toISOString().slice(0, 10)
+    // Only overwrite when we haven't saved yet today
+    if (prev.androidApplink?.savedDate === today) return
     localStorage.setItem('perf_kpi_prev', JSON.stringify({
       ...prev,
-      androidApplink: { value: delta, savedAt: Date.now() }
+      androidApplink: { value: delta, savedDate: today, savedAt: Date.now() }
     }))
   }, [benchmarkRows])
 
