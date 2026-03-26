@@ -119,9 +119,11 @@ src/
 │   └── BugTable.css            # Table styles
 ├── services/
 │   ├── bugzillaService.js      # Bugzilla API integration
+│   ├── bugzillaService.test.js # Unit tests for pure service functions
 │   └── redashService.js        # STMO Redash API (query #114368, POST-then-poll)
 ├── utils/
-│   └── cache.js                # Caching utilities (TTL, cache keys)
+│   ├── cache.js                # Caching utilities (TTL, cache keys)
+│   └── cache.test.js           # Unit tests for cache utilities
 ├── App.jsx                     # Root component
 ├── App.css                     # App-level styles
 ├── main.jsx                    # Entry point
@@ -190,6 +192,30 @@ src/
 - `clearCache(key)` - Remove specific cache entry
 - `clearAllCache()` - Clear all cached data
 - `cachedFetch(cacheKey, fetchFunction, ttl)` - Wrapper for cached API calls
+- `getCacheStats()` - Returns `{ size, keys }` for debugging
+- `generateCacheKey(prefix, params)` - Builds cache key string; keys follow the form `prefix:param1=val1&param2=val2` (sorted)
+
+## Testing
+
+### Running Tests
+```bash
+npm test           # single run
+npm run test:watch # interactive watch mode
+```
+
+### Test Files
+- `src/utils/cache.test.js` — 22 tests covering all cache utility functions including TTL expiry, eviction, `cachedFetch` hit/miss/error behavior
+- `src/services/bugzillaService.test.js` — 19 tests covering `groupBugsBySeverity`, `groupBugsByComponent`, `getBugStats`, and `clearPerformanceImpactCache`
+
+### What's Tested
+- **cache.js**: TTL expiry, eviction from map, overwrite, `cachedFetch` hit/miss/error/no-cache-on-failure
+- **bugzillaService.js**: all S1–S4 severity mappings, unknown/missing severity → Unassigned, component counting, open/closed status classification, byStatus/byPriority breakdowns, `clearPerformanceImpactCache` key correctness
+
+### Testing Notes
+- Uses **Vitest** (built into Vite ecosystem, zero config)
+- Environment: `node` (no DOM needed for current tests)
+- `console.log` Cache HIT/MISS output leaks into test stdout — expected, harmless
+- Next additions: React Testing Library for component tests (requires `jsdom` environment)
 
 ## Development Workflow
 
@@ -265,6 +291,8 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 - Storage: In-memory (cleared on page refresh)
 - **localStorage persistence** (survives refresh):
   - `perf_kpi_prev` — previous KPI values for Overview change indicators (`speedometerDesktop.value`, `androidApplink.value`)
+    - Speedometer: only saved when `latestRow.push_date` advances (guards against overwriting on same-day reloads)
+    - Applink: only saved once per calendar day (guarded by `savedDate: 'YYYY-MM-DD'` field)
   - `priority_tracking_history` — daily snapshots `{ 'YYYY-MM-DD': { sp3: N, priority: N } }` for Priority Tracking chart; clear with `localStorage.removeItem('priority_tracking_history')`
   - `priority_bug_ids` / `priority_bug_tags` — Priority Bugs subsection state
   - `darkMode` — theme toggle state
@@ -303,6 +331,6 @@ Check console logs for "Cache HIT" or "Cache MISS". Click refresh button to clea
 
 ---
 
-**Last Updated**: 2026-03-25
+**Last Updated**: 2026-03-26
 **Version**: MVP (0.1.0)
 **Status**: Active Development
