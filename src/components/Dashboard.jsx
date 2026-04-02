@@ -5,6 +5,7 @@ import './Dashboard.css'
 import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchSpeedometer3Bugs } from '../services/bugzillaService'
 import { fetchBenchmarkRows, fetchSpeedometerRows } from '../services/redashService'
 import BugTable from './BugTable'
+import ComponentPriorities from './ComponentPriorities'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
 
@@ -690,6 +691,12 @@ function Dashboard() {
         >
           Components
         </button>
+        <button
+          className={activeView === 'compriorities' ? 'active' : ''}
+          onClick={() => setActiveView('compriorities')}
+        >
+          Perf Priorities
+        </button>
       </nav>
 
       <div className="dashboard-content">
@@ -1309,6 +1316,8 @@ function Dashboard() {
             </div>
           </div>
         )}
+
+        {activeView === 'compriorities' && <ComponentPriorities />}
       </div>
 
       <div className="toast-container">

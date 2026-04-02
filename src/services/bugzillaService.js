@@ -278,6 +278,91 @@ export async function fetchSpeedometer3Bugs(useCache = true) {
 }
 
 /**
+ * Fetch bugs for a named component group using a union of two signals:
+ *   1. status_whiteboard contains [perf-prio]
+ *   2. cf_performance_impact is high or medium
+ *
+ * Supported componentKey values: 'css', 'dom', 'graphics', 'layout', 'necko'
+ * 'necko' additionally queries Firefox for Android (no component filter).
+ *
+ * @param {string} componentKey
+ * @param {boolean} useCache
+ * @returns {Promise<Array>}
+ */
+export async function fetchComponentPriorityBugs(componentKey, useCache = true) {
+  const COMPONENT_DEFS = {
+    css:      [{ componentSubstring: 'CSS Parsing' }],
+    dom:      [{ componentSubstring: 'DOM' }],
+    graphics: [{ componentSubstring: 'Graphics' }],
+    layout:   [{ componentSubstring: 'Layout' }],
+    necko:    [
+      { componentSubstring: 'Networking' },
+      { androidProduct: 'Firefox for Android' },
+    ],
+  }
+
+  const defs = COMPONENT_DEFS[componentKey]
+  if (!defs) throw new Error(`Unknown component key: ${componentKey}`)
+
+  const cacheKey = `component-priority-${componentKey}`
+
+  const doFetch = async () => {
+    const apiKey = getApiKey()
+    const keyParam = apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : ''
+    const statuses = 'bug_status=UNCONFIRMED&bug_status=NEW&bug_status=ASSIGNED&bug_status=REOPENED'
+    const fields = 'include_fields=id%2Csummary%2Cseverity%2Cpriority%2Cstatus%2Ccomponent%2Cproduct%2Cassigned_to%2Cassigned_to_detail%2Clast_change_time%2Ccf_performance_impact%2Ccomment_count'
+
+    const fetchDef = async (def) => {
+      let url
+      if (def.componentSubstring) {
+        url = `${BUGZILLA_API_BASE}/bug?${statuses}`
+          + `&f1=classification&o1=notequals&v1=Graveyard`
+          + `&f2=component&o2=substring&v2=${encodeURIComponent(def.componentSubstring)}`
+          + `&f3=OP`
+          + `&f4=status_whiteboard&o4=substring&v4=perf-prio%5D`
+          + `&f5=cf_performance_impact&o5=anyexact&v5=high%2Cmedium`
+          + `&f6=CP&j3=OR`
+          + `&${fields}&limit=200${keyParam}`
+      } else {
+        url = `${BUGZILLA_API_BASE}/bug?${statuses}`
+          + `&product=${encodeURIComponent(def.androidProduct)}`
+          + `&f1=OP`
+          + `&f2=status_whiteboard&o2=substring&v2=perf-prio%5D`
+          + `&f3=cf_performance_impact&o3=anyexact&v3=high%2Cmedium`
+          + `&f4=CP&j1=OR`
+          + `&${fields}&limit=200${keyParam}`
+      }
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`Bugzilla API error: ${response.status}`)
+      const data = await response.json()
+      return data.bugs || []
+    }
+
+    const results = await Promise.all(defs.map(fetchDef))
+    const seen = new Set()
+    return results.flat().filter(bug => {
+      if (seen.has(bug.id)) return false
+      seen.add(bug.id)
+      return true
+    })
+  }
+
+  if (!useCache) return doFetch()
+  return cachedFetch(cacheKey, doFetch)
+}
+
+/**
+ * Clear cached bugs for a specific component priority key (or all if omitted).
+ * @param {string|null} componentKey
+ */
+export function clearComponentPriorityCache(componentKey = null) {
+  const keys = componentKey
+    ? [`component-priority-${componentKey}`]
+    : ['css', 'dom', 'graphics', 'layout', 'necko'].map(k => `component-priority-${k}`)
+  keys.forEach(k => clearCache(k))
+}
+
+/**
  * Clear cache for performance impact bugs
  * @param {string} impactLevel - Optional specific impact level to clear
  */
