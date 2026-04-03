@@ -873,137 +873,113 @@ function Dashboard() {
                 })()}
               </div>
             </div>
-            <div className="overview-grid">
-              <div className="overview-left-column">
-                <div className="chart-card">
-                  <h3>SP3 Area Hotspot</h3>
-                  <p className="chart-subtitle">Open SP3 bugs by area of improvement</p>
-                  {sp3BugsLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div></div>}
-                  {!sp3BugsLoading && areaHotspotRows.length > 0 && (
-                    <div className="chart-container" style={{minHeight: `${Math.max(160, areaHotspotRows.length * 28)}px`}}>
-                      <Bar data={areaHotspotData} options={areaHotspotOptions} />
-                    </div>
-                  )}
-                  {!sp3BugsLoading && areaHotspotRows.length === 0 && (
-                    <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
-                  )}
-                </div>
-                <div className="chart-card">
-                  <h3>Top Bugs to Act On</h3>
-                  <p className="chart-subtitle">Highest-scored open SP3 bugs</p>
-                  {sp3BugsLoading && <div className="loading-container" style={{minHeight:80}}><div className="loading-spinner"></div></div>}
-                  {!sp3BugsLoading && top5Bugs.length > 0 && (
-                    <ol className="overview-top-bugs">
-                      {top5Bugs.map(bug => (
-                        <li key={bug.id} className="overview-top-bug-row">
-                          <span className="overview-top-bug-score">{bug.score}</span>
-                          <div className="overview-top-bug-body">
-                            <a
-                              href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`}
-                              target="_blank" rel="noopener noreferrer"
-                              className="overview-top-bug-id"
-                            >
-                              #{bug.id}
-                            </a>
-                            <span className="overview-top-bug-summary">
-                              {bug.summary?.length > 72 ? bug.summary.slice(0, 69) + '…' : bug.summary}
-                            </span>
-                            <span className="overview-top-bug-flags">
-                              {bug.flags.map(f => (
-                                <span key={f} className={`overview-top-bug-flag overview-flag--${f}`}>{flagText(f)}</span>
-                              ))}
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                  {!sp3BugsLoading && top5Bugs.length === 0 && (
-                    <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
-                  )}
-                </div>
-              </div>
+            {/* Row 1: [E][F][H] — benchmark KPIs */}
+            <div className="overview-grid overview-grid--3col">
+              {/* E: Speedometer 3 Desktop */}
               <div className="chart-card">
-                <h3>Priority Tracking</h3>
-                <div className="chart-container">
-                  {priorityTrackingEntries.length > 0
-                    ? <Line data={priorityTrackingData} options={chartOptions} />
-                    : <p className="chart-subtitle" style={{textAlign:'center', marginTop:'60px'}}>No history yet — data will appear after today's first load.</p>
-                  }
-                </div>
+                <h3>Speedometer 3 — Desktop</h3>
+                {speedometerLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
+                {!speedometerLoading && (() => {
+                  const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
+                  const latestRow = speedometerRows[speedometerRows.length - 1]
+                  if (!startRow || !latestRow) return <p className="chart-subtitle">No data available</p>
+                  const fxCurrent = latestRow.firefox_value_ma_desktop
+                  const chromeStart = startRow.chrome_value_ma_desktop
+                  const delta = fxCurrent && chromeStart ? 100 * (fxCurrent / chromeStart - 1) : null
+                  const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                  const prevVal = prevKpiValues.speedometerDesktop?.value
+                  const change = delta != null && prevVal != null ? delta - prevVal : null
+                  return (
+                    <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
+                      <span className={`overview-kpi-value ${colorClass}`}>
+                        {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+                      </span>
+                      <span className="overview-kpi-label">Fx vs Chrome Start</span>
+                      {change != null && Math.abs(change) >= 0.01 && (
+                        <span className={`overview-kpi-change ${change > 0 ? 'kpi-change-good' : 'kpi-change-bad'}`}>
+                          {change > 0 ? '▲' : '▼'} {change > 0 ? '+' : ''}{change.toFixed(2)}pp
+                        </span>
+                      )}
+                      <span className="chart-subtitle" style={{marginTop: '4px'}}>{latestRow.push_date}</span>
+                    </div>
+                  )
+                })()}
               </div>
-              <div className="overview-kpi-column">
-                <div className="chart-card">
-                  <h3>Speedometer 3 — Desktop</h3>
-                  {speedometerLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
-                  {!speedometerLoading && (() => {
-                    const startRow = speedometerRows.find(r => r.push_date === '2026-01-01')
-                    const latestRow = speedometerRows[speedometerRows.length - 1]
-                    if (!startRow || !latestRow) return <p className="chart-subtitle">No data available</p>
-                    const fxCurrent = latestRow.firefox_value_ma_desktop
-                    const chromeStart = startRow.chrome_value_ma_desktop
-                    const delta = fxCurrent && chromeStart ? 100 * (fxCurrent / chromeStart - 1) : null
-                    const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
-                    const prevVal = prevKpiValues.speedometerDesktop?.value
-                    const change = delta != null && prevVal != null ? delta - prevVal : null
-                    return (
-                      <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
-                        <span className={`overview-kpi-value ${colorClass}`}>
-                          {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+              {/* F: Android Applink */}
+              <div className="chart-card">
+                <h3>Android Applink</h3>
+                {benchmarkLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
+                {!benchmarkLoading && (() => {
+                  const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
+                  const delta = blendedRow?.delta_ytd
+                  const colorClass = delta == null ? '' : delta < 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                  const prevVal = prevKpiValues.androidApplink?.value
+                  const change = delta != null && prevVal != null ? delta - prevVal : null
+                  return (
+                    <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
+                      <span className={`overview-kpi-value ${colorClass}`}>
+                        {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+                      </span>
+                      <span className="overview-kpi-label">Fx Delta YTD</span>
+                      {change != null && Math.abs(change) >= 0.01 && (
+                        <span className={`overview-kpi-change ${change < 0 ? 'kpi-change-good' : 'kpi-change-bad'}`}>
+                          {change < 0 ? '▼' : '▲'} {change > 0 ? '+' : ''}{change.toFixed(2)}pp
                         </span>
-                        <span className="overview-kpi-label">Fx vs Chrome Start</span>
-                        {change != null && Math.abs(change) >= 0.01 && (
-                          <span className={`overview-kpi-change ${change > 0 ? 'kpi-change-good' : 'kpi-change-bad'}`}>
-                            {change > 0 ? '▲' : '▼'} {change > 0 ? '+' : ''}{change.toFixed(2)}pp
-                          </span>
-                        )}
-                        <span className="chart-subtitle" style={{marginTop: '4px'}}>{latestRow.push_date}</span>
-                      </div>
-                    )
-                  })()}
-                </div>
-                <div className="chart-card">
-                  <h3>Android Applink</h3>
-                  {benchmarkLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
-                  {!benchmarkLoading && (() => {
-                    const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
-                    const delta = blendedRow?.delta_ytd
-                    const colorClass = delta == null ? '' : delta < 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
-                    const prevVal = prevKpiValues.androidApplink?.value
-                    const change = delta != null && prevVal != null ? delta - prevVal : null
-                    return (
-                      <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
-                        <span className={`overview-kpi-value ${colorClass}`}>
-                          {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
-                        </span>
-                        <span className="overview-kpi-label">Fx Delta YTD</span>
-                        {change != null && Math.abs(change) >= 0.01 && (
-                          <span className={`overview-kpi-change ${change < 0 ? 'kpi-change-good' : 'kpi-change-bad'}`}>
-                            {change < 0 ? '▼' : '▲'} {change > 0 ? '+' : ''}{change.toFixed(2)}pp
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })()}
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+              {/* H: JetStream 3 (placeholder) */}
+              <div className="chart-card">
+                <h3>JetStream 3</h3>
+                <p className="chart-subtitle">Benchmark data not yet configured</p>
+                <div className="query-placeholder" style={{marginTop: '32px'}}>
+                  <p>📊 Query configuration pending…</p>
                 </div>
               </div>
             </div>
 
-            {/* All-component tiles */}
-            <div className="overview-grid">
+            {/* Row 2: [A][B][G] — SP3 hotspot, SP3 top bugs, all-comp top bugs */}
+            <div className="overview-grid overview-grid--3col">
+              {/* A: SP3 Area Hotspot */}
               <div className="chart-card">
-                <h3>Area Hotspot — All Components</h3>
-                <p className="chart-subtitle">Open bugs by area across all tracked components</p>
-                {allCompLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div><p style={{marginTop:8,fontSize:'0.8rem',color:'#999'}}>Fetching 9 components…</p></div>}
-                {!allCompLoading && areaHotspotAllRows.length > 0 && (
-                  <div className="chart-container" style={{minHeight: `${Math.max(160, areaHotspotAllRows.length * 28)}px`}}>
-                    <Bar data={areaHotspotAllData} options={areaHotspotOptions} />
+                <h3>SP3 Area Hotspot</h3>
+                <p className="chart-subtitle">Open SP3 bugs by area of improvement</p>
+                {sp3BugsLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div></div>}
+                {!sp3BugsLoading && areaHotspotRows.length > 0 && (
+                  <div className="chart-container" style={{minHeight: `${Math.max(160, areaHotspotRows.length * 28)}px`}}>
+                    <Bar data={areaHotspotData} options={areaHotspotOptions} />
                   </div>
                 )}
-                {!allCompLoading && areaHotspotAllRows.length === 0 && (
-                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
+                {!sp3BugsLoading && areaHotspotRows.length === 0 && (
+                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
                 )}
               </div>
+              {/* B: SP3 Top Bugs */}
+              <div className="chart-card">
+                <h3>Top Bugs to Act On — SP3</h3>
+                <p className="chart-subtitle">Highest-scored open SP3 bugs</p>
+                {sp3BugsLoading && <div className="loading-container" style={{minHeight:80}}><div className="loading-spinner"></div></div>}
+                {!sp3BugsLoading && top5Bugs.length > 0 && (
+                  <ol className="overview-top-bugs">
+                    {top5Bugs.map(bug => (
+                      <li key={bug.id} className="overview-top-bug-row">
+                        <span className="overview-top-bug-score">{bug.score}</span>
+                        <div className="overview-top-bug-body">
+                          <a href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`} target="_blank" rel="noopener noreferrer" className="overview-top-bug-id">#{bug.id}</a>
+                          <span className="overview-top-bug-summary">{bug.summary?.length > 72 ? bug.summary.slice(0, 69) + '…' : bug.summary}</span>
+                          <span className="overview-top-bug-flags">{bug.flags.map(f => <span key={f} className={`overview-top-bug-flag overview-flag--${f}`}>{flagText(f)}</span>)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {!sp3BugsLoading && top5Bugs.length === 0 && (
+                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
+                )}
+              </div>
+              {/* G: All-Comp Top Bugs */}
               <div className="chart-card">
                 <h3>Top Bugs to Act On — All Components</h3>
                 <p className="chart-subtitle">Highest-scored open bugs across all tracked components</p>
@@ -1014,21 +990,9 @@ function Dashboard() {
                       <li key={bug.id} className="overview-top-bug-row">
                         <span className="overview-top-bug-score">{bug.score}</span>
                         <div className="overview-top-bug-body">
-                          <a
-                            href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="overview-top-bug-id"
-                          >
-                            #{bug.id}
-                          </a>
-                          <span className="overview-top-bug-summary">
-                            {bug.summary?.length > 72 ? bug.summary.slice(0, 69) + '…' : bug.summary}
-                          </span>
-                          <span className="overview-top-bug-flags">
-                            {bug.flags.map(f => (
-                              <span key={f} className={`overview-top-bug-flag overview-flag--${f}`}>{flagText(f)}</span>
-                            ))}
-                          </span>
+                          <a href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`} target="_blank" rel="noopener noreferrer" className="overview-top-bug-id">#{bug.id}</a>
+                          <span className="overview-top-bug-summary">{bug.summary?.length > 72 ? bug.summary.slice(0, 69) + '…' : bug.summary}</span>
+                          <span className="overview-top-bug-flags">{bug.flags.map(f => <span key={f} className={`overview-top-bug-flag overview-flag--${f}`}>{flagText(f)}</span>)}</span>
                         </div>
                       </li>
                     ))}
@@ -1038,6 +1002,21 @@ function Dashboard() {
                   <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
                 )}
               </div>
+            </div>
+
+            {/* Row 3: [D×3] — all-component area hotspot, full width */}
+            <div className="chart-card">
+              <h3>Area Hotspot — All Components</h3>
+              <p className="chart-subtitle">Open bugs by area across all tracked components</p>
+              {allCompLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div><p style={{marginTop:8,fontSize:'0.8rem',color:'#999'}}>Fetching 9 components…</p></div>}
+              {!allCompLoading && areaHotspotAllRows.length > 0 && (
+                <div className="chart-container" style={{minHeight: '260px'}}>
+                  <Bar data={areaHotspotAllData} options={areaHotspotOptions} />
+                </div>
+              )}
+              {!allCompLoading && areaHotspotAllRows.length === 0 && (
+                <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
+              )}
             </div>
           </div>
         )}

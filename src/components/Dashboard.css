@@ -776,6 +776,10 @@ html.light-mode .query-placeholder {
   gap: 20px;
 }
 
+.overview-grid--3col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .stats-card-full {
   width: 100%;
 }
