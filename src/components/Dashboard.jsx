@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
 import { Pie, Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchSpeedometer3Bugs } from '../services/bugzillaService'
+import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchComponentPriorityBugs } from '../services/bugzillaService'
 import { fetchBenchmarkRows, fetchSpeedometerRows } from '../services/redashService'
+import { AREA_DEFS, AREA_COLORS, getAreaTags, scoreBug, getBugFlags, flagText } from '../utils/bugAnalysis'
 import BugTable from './BugTable'
 import ComponentPriorities from './ComponentPriorities'
 
@@ -275,7 +276,7 @@ function Dashboard() {
       setSp3BugsLoading(true)
       setSp3BugsError(null)
       try {
-        const bugs = await fetchSpeedometer3Bugs()
+        const bugs = await fetchComponentPriorityBugs('sp3')
         setSp3Bugs(bugs)
         const today = new Date().toISOString().split('T')[0]
         setPriorityTrackingHistory(prev => {
@@ -545,6 +546,47 @@ function Dashboard() {
     }],
   }
 
+  // Open SP3 bugs with scoring applied (for overview tiles)
+  const openSp3Bugs = sp3Bugs
+    .filter(b => b.status !== 'RESOLVED' && b.status !== 'VERIFIED' && b.status !== 'CLOSED')
+    .map(b => ({ ...b, score: scoreBug(b), flags: getBugFlags(b), areas: getAreaTags(b) }))
+    .sort((a, b) => b.score - a.score)
+
+  // Area of Improvement Hotspot — count open SP3 bugs per area, sorted descending
+  const areaHotspotRows = AREA_DEFS
+    .map((def, i) => ({
+      label: def.label,
+      count: openSp3Bugs.filter(b => b.areas.includes(def.tag)).length,
+      color: AREA_COLORS[i],
+    }))
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  const areaHotspotData = {
+    labels: areaHotspotRows.map(r => r.label),
+    datasets: [{
+      data: areaHotspotRows.map(r => r.count),
+      backgroundColor: areaHotspotRows.map(r => r.color),
+      borderWidth: 0,
+    }],
+  }
+
+  const areaHotspotOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: {
+      label: ctx => ` ${ctx.parsed.x} bug${ctx.parsed.x !== 1 ? 's' : ''}`,
+    }}},
+    scales: {
+      x: { beginAtZero: true, ticks: { color: '#999', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.06)' } },
+      y: { ticks: { color: '#ccc', font: { size: 11 } }, grid: { display: false } },
+    },
+  }
+
+  // Top 5 bugs to act on — highest-scored open SP3 bugs
+  const top5Bugs = openSp3Bugs.slice(0, 5)
+
   // Sample data for benchmark scores
   const priorityTrackingEntries = Object.entries(priorityTrackingHistory)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -777,10 +819,53 @@ function Dashboard() {
               </div>
             </div>
             <div className="overview-grid">
-              <div className="chart-card">
-                <h3>Performance Impact Distribution</h3>
-                <div className="chart-container">
-                  <Bar data={overviewBugData} options={impactBarOptions} onClick={handleImpactBarClick} />
+              <div className="overview-left-column">
+                <div className="chart-card">
+                  <h3>SP3 Area Hotspot</h3>
+                  <p className="chart-subtitle">Open SP3 bugs by area of improvement</p>
+                  {sp3BugsLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div></div>}
+                  {!sp3BugsLoading && areaHotspotRows.length > 0 && (
+                    <div className="chart-container" style={{minHeight: `${Math.max(160, areaHotspotRows.length * 28)}px`}}>
+                      <Bar data={areaHotspotData} options={areaHotspotOptions} />
+                    </div>
+                  )}
+                  {!sp3BugsLoading && areaHotspotRows.length === 0 && (
+                    <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
+                  )}
+                </div>
+                <div className="chart-card">
+                  <h3>Top Bugs to Act On</h3>
+                  <p className="chart-subtitle">Highest-scored open SP3 bugs</p>
+                  {sp3BugsLoading && <div className="loading-container" style={{minHeight:80}}><div className="loading-spinner"></div></div>}
+                  {!sp3BugsLoading && top5Bugs.length > 0 && (
+                    <ol className="overview-top-bugs">
+                      {top5Bugs.map(bug => (
+                        <li key={bug.id} className="overview-top-bug-row">
+                          <span className="overview-top-bug-score">{bug.score}</span>
+                          <div className="overview-top-bug-body">
+                            <a
+                              href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="overview-top-bug-id"
+                            >
+                              #{bug.id}
+                            </a>
+                            <span className="overview-top-bug-summary">
+                              {bug.summary?.length > 72 ? bug.summary.slice(0, 69) + '…' : bug.summary}
+                            </span>
+                            <span className="overview-top-bug-flags">
+                              {bug.flags.map(f => (
+                                <span key={f} className={`overview-top-bug-flag overview-flag--${f}`}>{flagText(f)}</span>
+                              ))}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                  {!sp3BugsLoading && top5Bugs.length === 0 && (
+                    <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
+                  )}
                 </div>
               </div>
               <div className="chart-card">

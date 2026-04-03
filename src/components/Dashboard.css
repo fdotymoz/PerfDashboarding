@@ -875,6 +875,81 @@ html.light-mode .query-placeholder {
   color: #f87171;
 }
 
+.overview-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Top Bugs to Act On list */
+.overview-top-bugs {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.overview-top-bug-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.overview-top-bug-score {
+  flex-shrink: 0;
+  min-width: 28px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  background: rgba(102, 126, 234, 0.25);
+  color: #a5b4fc;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.overview-top-bug-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.overview-top-bug-id {
+  font-size: 0.75rem;
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+.overview-top-bug-id:hover { text-decoration: underline; }
+
+.overview-top-bug-summary {
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-top-bug-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.overview-top-bug-flag {
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.overview-flag--underappreciated { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.overview-flag--needs-triage     { background: rgba(239,68,68,0.15);  color: #f87171; }
+.overview-flag--stale            { background: rgba(148,163,184,0.15); color: #94a3b8; }
+
 .overview-kpi-column {
   display: flex;
   flex-direction: column;
@@ -955,6 +1030,9 @@ html.light-mode .stats-card,
 html.light-mode .dashboard-nav {
   background: rgba(0, 0, 0, 0.02);
 }
+
+html.light-mode .overview-top-bug-summary { color: #1e293b; }
+html.light-mode .overview-top-bug-score { background: rgba(102,126,234,0.12); color: #4f46e5; }
 
 html.light-mode .dashboard-nav button {
   background: rgba(0, 0, 0, 0.05);
