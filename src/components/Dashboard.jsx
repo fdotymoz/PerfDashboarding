@@ -44,6 +44,10 @@ function Dashboard() {
   // Initial key for Perf Priorities tab (set when navigating from a deep-link, e.g. Overview SP3 tile)
   const [compPrioritiesInitialKey, setCompPrioritiesInitialKey] = useState(null)
 
+  // All non-SP3 component priority bugs (for overview all-component tiles)
+  const [allCompBugs, setAllCompBugs] = useState([])
+  const [allCompLoading, setAllCompLoading] = useState(false)
+
   // Speedometer 3 subsection bugs (from meta bug 2026188)
   const [sp3Bugs, setSp3Bugs] = useState([])
   const [sp3BugsLoading, setSp3BugsLoading] = useState(false)
@@ -293,6 +297,35 @@ function Dashboard() {
     }
     loadSp3Bugs()
   }, [activeView, sp3RefreshTick])
+
+  // Fetch all non-SP3 component priority bugs concurrently for overview tiles.
+  // Uses the same 5-min cache as Perf Priorities tab — instant if already warm.
+  useEffect(() => {
+    if (activeView !== 'overview') return
+    if (allCompBugs.length > 0) return
+    let cancelled = false
+    const COMP_KEYS = ['css', 'dom', 'graphics', 'javascript', 'layout', 'memory', 'necko', 'painting', 'storage']
+    async function loadAllComps() {
+      setAllCompLoading(true)
+      try {
+        const results = await Promise.all(COMP_KEYS.map(k => fetchComponentPriorityBugs(k)))
+        if (cancelled) return
+        const seen = new Set()
+        const merged = results.flat().filter(b => {
+          if (seen.has(b.id)) return false
+          seen.add(b.id)
+          return true
+        })
+        setAllCompBugs(merged)
+      } catch (err) {
+        console.error('Failed to load all-component overview bugs:', err)
+      } finally {
+        if (!cancelled) setAllCompLoading(false)
+      }
+    }
+    loadAllComps()
+    return () => { cancelled = true }
+  }, [activeView])
 
   // Persist current Speedometer Desktop KPI value to localStorage when data updates.
   // Only save when the underlying data date changes so that prevKpiValues (captured at mount)
@@ -586,6 +619,28 @@ function Dashboard() {
 
   // Top 5 bugs to act on — highest-scored open SP3 bugs
   const top5Bugs = openSp3Bugs.slice(0, 5)
+
+  // All-component overview tiles
+  const openAllCompBugs = allCompBugs
+    .filter(b => b.status !== 'RESOLVED' && b.status !== 'VERIFIED' && b.status !== 'CLOSED')
+    .map(b => ({ ...b, score: scoreBug(b), flags: getBugFlags(b), areas: getAreaTags(b) }))
+    .sort((a, b) => b.score - a.score)
+
+  const top5AllCompBugs = openAllCompBugs.slice(0, 5)
+
+  const areaHotspotAllRows = AREA_DEFS
+    .map((def, i) => ({
+      label: def.label,
+      count: openAllCompBugs.filter(b => b.areas.includes(def.tag)).length,
+      color: AREA_COLORS[i],
+    }))
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  const areaHotspotAllData = {
+    labels: areaHotspotAllRows.map(r => r.label),
+    datasets: [{ data: areaHotspotAllRows.map(r => r.count), backgroundColor: areaHotspotAllRows.map(r => r.color), borderWidth: 0 }],
+  }
 
   // Sample data for benchmark scores
   const priorityTrackingEntries = Object.entries(priorityTrackingHistory)
@@ -931,6 +986,57 @@ function Dashboard() {
                     )
                   })()}
                 </div>
+              </div>
+            </div>
+
+            {/* All-component tiles */}
+            <div className="overview-grid">
+              <div className="chart-card">
+                <h3>Area Hotspot — All Components</h3>
+                <p className="chart-subtitle">Open bugs by area across all tracked components</p>
+                {allCompLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div><p style={{marginTop:8,fontSize:'0.8rem',color:'#999'}}>Fetching 9 components…</p></div>}
+                {!allCompLoading && areaHotspotAllRows.length > 0 && (
+                  <div className="chart-container" style={{minHeight: `${Math.max(160, areaHotspotAllRows.length * 28)}px`}}>
+                    <Bar data={areaHotspotAllData} options={areaHotspotOptions} />
+                  </div>
+                )}
+                {!allCompLoading && areaHotspotAllRows.length === 0 && (
+                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
+                )}
+              </div>
+              <div className="chart-card">
+                <h3>Top Bugs to Act On — All Components</h3>
+                <p className="chart-subtitle">Highest-scored open bugs across all tracked components</p>
+                {allCompLoading && <div className="loading-container" style={{minHeight:80}}><div className="loading-spinner"></div></div>}
+                {!allCompLoading && top5AllCompBugs.length > 0 && (
+                  <ol className="overview-top-bugs">
+                    {top5AllCompBugs.map(bug => (
+                      <li key={bug.id} className="overview-top-bug-row">
+                        <span className="overview-top-bug-score">{bug.score}</span>
+                        <div className="overview-top-bug-body">
+                          <a
+                            href={`https://bugzilla.mozilla.org/show_bug.cgi?id=${bug.id}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="overview-top-bug-id"
+                          >
+                            #{bug.id}
+                          </a>
+                          <span className="overview-top-bug-summary">
+                            {bug.summary?.length > 72 ? bug.summary.slice(0, 69) + '…' : bug.summary}
+                          </span>
+                          <span className="overview-top-bug-flags">
+                            {bug.flags.map(f => (
+                              <span key={f} className={`overview-top-bug-flag overview-flag--${f}`}>{flagText(f)}</span>
+                            ))}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {!allCompLoading && top5AllCompBugs.length === 0 && (
+                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
+                )}
               </div>
             </div>
           </div>
