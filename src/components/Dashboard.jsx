@@ -940,21 +940,17 @@ function Dashboard() {
               </div>
             </div>
 
-            {/* Row 2: [A][B][G] — SP3 hotspot, SP3 top bugs, all-comp top bugs */}
+            {/* Row 2: [C][B][G] — priority tracking, SP3 top bugs, all-comp top bugs */}
             <div className="overview-grid overview-grid--3col">
-              {/* A: SP3 Area Hotspot */}
+              {/* C: Priority Tracking */}
               <div className="chart-card">
-                <h3>SP3 Area Hotspot</h3>
-                <p className="chart-subtitle">Open SP3 bugs by area of improvement</p>
-                {sp3BugsLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div></div>}
-                {!sp3BugsLoading && areaHotspotRows.length > 0 && (
-                  <div className="chart-container" style={{minHeight: `${Math.max(160, areaHotspotRows.length * 28)}px`}}>
-                    <Bar data={areaHotspotData} options={areaHotspotOptions} />
-                  </div>
-                )}
-                {!sp3BugsLoading && areaHotspotRows.length === 0 && (
-                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data — loads with SP3 bugs.</p>
-                )}
+                <h3>Priority Tracking</h3>
+                <div className="chart-container">
+                  {priorityTrackingEntries.length > 0
+                    ? <Line data={priorityTrackingData} options={chartOptions} />
+                    : <p className="chart-subtitle" style={{textAlign:'center', marginTop:'60px'}}>No history yet — data will appear after today's first load.</p>
+                  }
+                </div>
               </div>
               {/* B: SP3 Top Bugs */}
               <div className="chart-card">
@@ -1004,32 +1000,19 @@ function Dashboard() {
               </div>
             </div>
 
-            {/* Row 3: [D×2][C] — all-comp hotspot spans 2 cols, priority tracking in 1 */}
-            <div className="overview-grid overview-grid--3col">
-              {/* D: All-Comp Area Hotspot (spans 2 columns) */}
-              <div className="chart-card" style={{gridColumn: 'span 2'}}>
-                <h3>Area Hotspot — All Components</h3>
-                <p className="chart-subtitle">Open bugs by area across all tracked components</p>
-                {allCompLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div><p style={{marginTop:8,fontSize:'0.8rem',color:'#999'}}>Fetching 9 components…</p></div>}
-                {!allCompLoading && areaHotspotAllRows.length > 0 && (
-                  <div className="chart-container" style={{minHeight: '260px'}}>
-                    <Bar data={areaHotspotAllData} options={areaHotspotOptions} />
-                  </div>
-                )}
-                {!allCompLoading && areaHotspotAllRows.length === 0 && (
-                  <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
-                )}
-              </div>
-              {/* C: Priority Tracking */}
-              <div className="chart-card">
-                <h3>Priority Tracking</h3>
-                <div className="chart-container">
-                  {priorityTrackingEntries.length > 0
-                    ? <Line data={priorityTrackingData} options={chartOptions} />
-                    : <p className="chart-subtitle" style={{textAlign:'center', marginTop:'60px'}}>No history yet — data will appear after today's first load.</p>
-                  }
+            {/* Row 3: [D×3] — all-comp area hotspot, full width */}
+            <div className="chart-card">
+              <h3>Area Hotspot — All Components</h3>
+              <p className="chart-subtitle">Open bugs by area across all tracked components</p>
+              {allCompLoading && <div className="loading-container" style={{minHeight:120}}><div className="loading-spinner"></div><p style={{marginTop:8,fontSize:'0.8rem',color:'#999'}}>Fetching 9 components…</p></div>}
+              {!allCompLoading && areaHotspotAllRows.length > 0 && (
+                <div className="chart-container" style={{minHeight: '260px'}}>
+                  <Bar data={areaHotspotAllData} options={areaHotspotOptions} />
                 </div>
-              </div>
+              )}
+              {!allCompLoading && areaHotspotAllRows.length === 0 && (
+                <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
+              )}
             </div>
           </div>
         )}
