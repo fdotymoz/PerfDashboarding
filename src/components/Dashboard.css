@@ -893,8 +893,6 @@ html.light-mode .query-placeholder {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 280px;
-  overflow-y: auto;
 }
 
 .overview-top-bug-row {
