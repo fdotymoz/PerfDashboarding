@@ -933,9 +933,7 @@ html.light-mode .query-placeholder {
   font-size: 0.82rem;
   color: #e2e8f0;
   line-height: 1.35;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .overview-top-bug-flags {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { groupBugsBySeverity, groupBugsByComponent, getBugStats, clearPerformanceImpactCache } from './bugzillaService'
+import { groupBugsBySeverity, groupBugsByComponent, getBugStats, clearPerformanceImpactCache, clearComponentPriorityCache } from './bugzillaService'
 import { setCache, getCached, clearAllCache } from '../utils/cache'
 
 // ---------------------------------------------------------------------------
@@ -221,5 +221,44 @@ describe('clearPerformanceImpactCache', () => {
     expect(getCached(HIGH_KEY)).toBeNull()
     expect(getCached(MEDIUM_KEY)).toBeNull()
     expect(getCached(LOW_KEY)).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// clearComponentPriorityCache
+// ---------------------------------------------------------------------------
+describe('clearComponentPriorityCache', () => {
+  const ALL_KEYS = ['css', 'dom', 'graphics', 'javascript', 'layout', 'memory', 'necko', 'painting', 'sp3', 'storage']
+    .map(k => `component-priority-${k}`)
+
+  beforeEach(() => clearAllCache())
+
+  it('clears the correct cache key when called with a specific component key', () => {
+    setCache('component-priority-graphics', ['bug1'])
+    clearComponentPriorityCache('graphics')
+    expect(getCached('component-priority-graphics')).toBeNull()
+  })
+
+  it('leaves other component keys untouched when clearing a specific one', () => {
+    setCache('component-priority-dom', ['bug1'])
+    setCache('component-priority-layout', ['bug2'])
+    clearComponentPriorityCache('dom')
+    expect(getCached('component-priority-layout')).toEqual(['bug2'])
+  })
+
+  it('clears all 10 component keys when called with no argument', () => {
+    ALL_KEYS.forEach(k => setCache(k, ['data']))
+    clearComponentPriorityCache()
+    ALL_KEYS.forEach(k => expect(getCached(k)).toBeNull())
+  })
+
+  it('includes sp3 when clearing all keys', () => {
+    setCache('component-priority-sp3', ['sp3-bug'])
+    clearComponentPriorityCache()
+    expect(getCached('component-priority-sp3')).toBeNull()
+  })
+
+  it('is a no-op for a key that was never cached', () => {
+    expect(() => clearComponentPriorityCache('necko')).not.toThrow()
   })
 })

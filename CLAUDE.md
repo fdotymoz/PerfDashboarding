@@ -21,21 +21,22 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 ## Current Features
 
 ### 1. Overview Tab
-- **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Priority SP3 (→ Priority tab Speedometer 3 subsection), Priority Bugs (→ Priority tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
-  - **Priority SP3** tile shows the count of bugs from meta bug #2026188; fetched on Overview load
-- Performance Impact Distribution bar chart (clickable bars → navigate to relevant tab/query)
-- **Priority Tracking** line chart: plots daily snapshots of Priority SP3 and Priority Bugs counts; up to 30 days; persisted to `localStorage` under `priority_tracking_history`; populated when SP3 bugs load
-- **Speedometer 3 — Desktop** KPI tile: shows Fx vs Chrome Start % (Speedometer score, positive=green/good), links to Benchmarks tab
-  - Shows `▲/▼ Xpp` change indicator vs. previous fetch (persisted to `localStorage` under `perf_kpi_prev`)
-- **Android Applink** KPI tile: shows BLENDED TOTAL Fx Delta YTD % (startup time, negative=green/good), links to Benchmarks tab
-  - Shows `▲/▼ Xpp` change indicator vs. previous fetch (same `perf_kpi_prev` key)
-- Speedometer and Applink KPI tiles are stacked vertically in a shared `overview-kpi-column` grid cell
+- **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Priority SP3 (→ Perf Priorities tab SP3 Prio), My Tracking (→ My Tracking tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
+  - **Priority SP3** tile shows the count of bugs from meta bug #2026188; fetched via `fetchComponentPriorityBugs('sp3')` on Overview load
+- **Overview tile layout** (3-column CSS grid `overview-grid--3col`):
+  - Row 1: [E Speedometer 3 KPI] [F Android Applink KPI] [H JetStream 3 (placeholder)]
+  - Row 2: [C Priority Tracking chart] [B SP3 Top Bugs] [G All-Comp Top Bugs]
+  - Row 3: [D All-Component Area Hotspot — full width]
+- **Tile descriptions**:
+  - **B — SP3 Top Bugs**: top 5 highest-scoring SP3 bugs; shows score, bug ID link, summary, and flag chips
+  - **C — Priority Tracking**: line chart with daily snapshots of SP3 and My Tracking counts; up to 30 days; persisted to `localStorage` under `priority_tracking_history`
+  - **D — All-Component Area Hotspot**: horizontal bar chart (Chart.js `indexAxis: 'y'`) of area tag distribution across all non-SP3 components; fetched via `Promise.all` on Overview load; deduplicates by bug ID
+  - **E — Speedometer 3 KPI**: shows Fx vs Chrome Start % (positive=green/good), links to Benchmarks tab; `▲/▼ Xpp` change indicator vs. previous fetch (persisted to `localStorage` under `perf_kpi_prev`)
+  - **F — Android Applink KPI**: shows BLENDED TOTAL Fx Delta YTD % (negative=green/good), links to Benchmarks tab; same `perf_kpi_prev` key
+  - **G — All-Comp Top Bugs**: top 5 highest-scoring bugs across all non-SP3 components; same row format as B
+  - **H — JetStream 3**: placeholder tile, blank
 
-### 2. Bug Tracking Tab
-- Bug severity visualization
-- Pie chart showing Critical/High/Medium/Low distribution
-
-### 3. Performance Impact Tab ⭐
+### 2. Performance Impact Tab ⭐
 - **Query by impact level**: High, Medium, Low
 - **Custom field**: `cf_performance_impact` from Bugzilla
 - **Component filtering**: Dropdown with bug counts per component
@@ -50,24 +51,9 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - **Pagination**: 10/25/50/100 items per page
 - **Manual refresh**: Button to clear cache and fetch fresh data
 - **Limit**: Up to 1,000 bugs per query
+- Green `+` button adds bug to My Tracking with auto-tags (Perf High/Med/Low)
 
-### 4. Performance Priority Tab
-- **Speedometer 3** subsection:
-  - Loads bugs from meta bug **#2026188** (`depends_on` list) via `fetchSpeedometer3Bugs()`
-  - Displays in `BugTable` with pagination; fetched lazily on first view (cached 5 min)
-  - "Meta Bug #2026188 ↗" link + Refresh button in header
-  - Also fetched on Overview load to populate the Priority SP3 Quick Stats tile
-- **Android Applink** subsection (query TBD — placeholder)
-- **Priority Bugs** subsection:
-  - Manually enter bug numbers (comma/space separated, Enter key support)
-  - Fetches from Bugzilla API by ID via `fetchBugsByIds()`
-  - Per-bug tags (alphanumeric, 15 char max) stored in localStorage
-  - Tag-based multi-select filter dropdown
-  - Remove bug via X button in table
-  - Green `+` button on Performance Impact tab adds bugs here with auto-tags (Perf High/Med/Low)
-  - Toast notifications on add; state persisted to `priority_bug_ids` / `priority_bug_tags` in localStorage
-
-### 5. Benchmarks Tab
+### 3. Benchmarks Tab
 Two tables stacked vertically:
 
 **Android Applink Startup** (STMO query #114368):
@@ -86,27 +72,45 @@ Two tables stacked vertically:
 - Shows "Latest data: YYYY-MM-DD" footer
 - Refresh button uses `speedometerRefreshTick` state
 
-### 6. Components Tab
+### 4. Components Tab
 - **Top 10 components** with any performance impact
 - Aggregates bugs from high/medium/low impact levels
 - Bar chart showing bug counts by component
 
-### 7. Perf Priorities Tab ⭐
-- **9 components tracked**: CSS Parsing & Transitions, DOM, Graphics, JavaScript Engine, Layout, Memory Allocator, Necko / Networking, Web Painting, Storage
-- **Dual signal query**: union of `status_whiteboard` contains `[perf-prio]` OR `cf_performance_impact` = high/medium; these two sets are largely disjoint and combining them is essential
+### 5. Perf Priorities Tab ⭐
+**Second in nav order** (Overview → Perf Priorities → ...)
+
+- **10 components tracked**: SP3 Prio, CSS Parsing & Transitions, DOM, Graphics, JavaScript Engine, Layout, Memory Allocator, Necko / Networking, Web Painting, Storage
+- **SP3 Prio** component: loads bugs from meta bug #2026188 via `metaBugId` def type; full scoring fields fetched (cf_performance_impact, comment_count)
+- **Dual signal query** (non-SP3 components): union of `status_whiteboard` contains `[perf-prio]` OR `cf_performance_impact` = high/medium
 - **Necko** additionally queries `product=Firefox for Android` (no component filter) and merges + deduplicates
 - **CSS** queries both CSS Parsing and CSS Transitions and Animations components
 - **Memory** merges Memory Allocator + Cycle Collector results (deduplicated)
 - **Composite scoring** per bug: perf signal (high=3, med=2, perf-prio only=1) + severity (S2=3, S3=2, S4=1) + priority (P2=3, P3=2, P4=1) + comment depth (≥30=3, ≥15=2, ≥8=1) + active in last 6 months (+1)
-- **Sub-component grouping** for Graphics (Core / Canvas2D / CanvasWebGL / ImageLib / Text / WebRender) and JavaScript Engine (Engine / JIT / GC); secondary tab row with bug count badges; "All" view renders grouped table sections
+- **Sub-component grouping**: `SUB_LABEL_FNS` map supports Graphics (Core / Canvas2D / CanvasWebGL / ImageLib / Text / WebRender) and JavaScript Engine (Engine / JIT / GC); secondary tab row with bug count badges; "All" view renders grouped table sections
 - **11 area-of-improvement tags** auto-detected from summary/component/product keywords:
   - SP3, Page Load, Scrolling, Video, Startup, Animation, Input, Memory, Battery, Network, Android
 - **Area filter pills**: click one or more area tags to cross-filter the table
 - **Flag chips** per row: ⚠ Underappreciated (high/medium impact but sev+pri unset), Needs Triage (no impact field + no sev/pri/assignee), Stale (>6 months inactive)
+- **`+` button** per bug row: adds bug to My Tracking tab with auto-tag derived from `cf_performance_impact` (high→'Perf High', medium→'Perf Med', low→'Perf Low'); rendered only when `onAddToPriority` prop is passed
 - **Key Observations** panel per component — hardcoded analysis from initial investigation, shown above the table
 - **Export**: ↓ CSV (full table with Areas + Flags columns) and ↓ Report (Markdown with observations, bug table, scoring methodology, area definitions)
 - Shows top 20 by default; "Show all N bugs" toggle
 - Refresh button clears cache for the selected component only; 5-min TTL otherwise
+- Default selected component: `initialKey` prop (defaults to `'sp3'`)
+
+### 6. My Tracking Tab
+**Last in nav order** (formerly "Performance Priority")
+
+- **Priority Bugs** subsection only (Android Applink subsection removed):
+  - Manually enter bug numbers (comma/space separated, Enter key support)
+  - Fetches from Bugzilla API by ID via `fetchBugsByIds()`
+  - Per-bug tags (alphanumeric, 15 char max) stored in localStorage
+  - Tag-based multi-select filter dropdown
+  - Remove bug via X button in table
+  - Green `+` button on Performance Impact tab adds bugs here with auto-tags (Perf High/Med/Low)
+  - Green `+` button on Perf Priorities tab adds bugs here with auto-tags (Perf High/Med/Low)
+  - Toast notifications on add; state persisted to `priority_bug_ids` / `priority_bug_tags` in localStorage
 
 ## Performance Optimizations
 
@@ -141,6 +145,8 @@ src/
 │   ├── bugzillaService.test.js    # Unit tests for pure service functions
 │   └── redashService.js           # STMO Redash API (query #114368, POST-then-poll)
 ├── utils/
+│   ├── bugAnalysis.js             # Shared scoring/flag/area-tag utilities (used by ComponentPriorities + Dashboard)
+│   ├── bugAnalysis.test.js        # Unit tests for bugAnalysis utilities
 │   ├── cache.js                   # Caching utilities (TTL, cache keys)
 │   └── cache.test.js              # Unit tests for cache utilities
 ├── App.jsx                        # Root component
@@ -190,13 +196,12 @@ src/
 - `fetchAllPerformanceImpactBugs(params, useCache)` - All impact levels
 - `fetchBugsByIds(bugIds, useCache)` - Fetch specific bugs by ID array
 - `fetchDependsOnIds(bugId)` - Fetch the `depends_on` list from a meta bug
-- `fetchSpeedometer3Bugs(useCache)` - Fetches bugs from meta bug #2026188 via depends_on; cache key `speedometer3-meta-2026188`
 - `groupBugsBySeverity(bugs)` - Group bugs by S1/S2/S3/S4
 - `groupBugsByComponent(bugs)` - Count bugs per component
 - `getBugStats(bugs)` - Calculate open/closed/total stats
 - `clearPerformanceImpactCache(impactLevel)` - Clear specific cache
-- `fetchComponentPriorityBugs(componentKey, useCache)` - Union query ([perf-prio] OR cf_performance_impact high/medium) for a named component group; keys: `css`, `dom`, `graphics`, `layout`, `necko`; Necko merges Core/Networking + Firefox for Android; cache key `component-priority-{key}`
-- `clearComponentPriorityCache(componentKey)` - Clear cache for one or all component priority keys
+- `fetchComponentPriorityBugs(componentKey, useCache)` - Union query ([perf-prio] OR cf_performance_impact high/medium) for a named component group; keys: `css`, `dom`, `graphics`, `javascript`, `layout`, `memory`, `necko`, `painting`, `sp3`, `storage`; SP3 uses `metaBugId` def type; Necko merges Core/Networking + Firefox for Android; cache key `component-priority-{key}`
+- `clearComponentPriorityCache(componentKey)` - Clear cache for one or all 10 component priority keys
 
 ### `redashService.js`
 
@@ -216,6 +221,18 @@ src/
 - `getCacheStats()` - Returns `{ size, keys }` for debugging
 - `generateCacheKey(prefix, params)` - Builds cache key string; keys follow the form `prefix:param1=val1&param2=val2` (sorted)
 
+### `utils/bugAnalysis.js`
+
+Shared utilities used by both `ComponentPriorities.jsx` and `Dashboard.jsx` (Overview tiles):
+- `AREA_DEFS` - Array of 11 area objects `{ tag, label, title }`
+- `ALL_AREA_TAGS` - Array of 11 tag strings
+- `AREA_COLORS` - Array of 11 rgba color strings, index-aligned with AREA_DEFS
+- `getAreaTags(bug)` - Regex-based area tag detection from summary/component/product
+- `scoreBug(bug)` - Composite score: perf signal + severity + priority + comment depth + recency
+- `getBugFlags(bug)` - Returns array of flag strings: `underappreciated`, `needs-triage`, `stale`
+- `flagText(flag)` - Human-readable label for a flag string
+- `SCORING_NOTE` - String description of scoring methodology (used in exports)
+
 ## Testing
 
 ### Running Tests
@@ -226,11 +243,14 @@ npm run test:watch # interactive watch mode
 
 ### Test Files
 - `src/utils/cache.test.js` — 22 tests covering all cache utility functions including TTL expiry, eviction, `cachedFetch` hit/miss/error behavior
-- `src/services/bugzillaService.test.js` — 19 tests covering `groupBugsBySeverity`, `groupBugsByComponent`, `getBugStats`, and `clearPerformanceImpactCache`
+- `src/services/bugzillaService.test.js` — 24 tests covering `groupBugsBySeverity`, `groupBugsByComponent`, `getBugStats`, `clearPerformanceImpactCache`, and `clearComponentPriorityCache`
+- `src/utils/bugAnalysis.test.js` — 37 tests covering `scoreBug`, `getBugFlags`, `getAreaTags`, `flagText`, and constant shape checks
+- **Total: 88 tests, 3 test files**
 
 ### What's Tested
 - **cache.js**: TTL expiry, eviction from map, overwrite, `cachedFetch` hit/miss/error/no-cache-on-failure
-- **bugzillaService.js**: all S1–S4 severity mappings, unknown/missing severity → Unassigned, component counting, open/closed status classification, byStatus/byPriority breakdowns, `clearPerformanceImpactCache` key correctness
+- **bugzillaService.js**: all S1–S4 severity mappings, unknown/missing severity → Unassigned, component counting, open/closed status classification, byStatus/byPriority breakdowns, `clearPerformanceImpactCache` key correctness, `clearComponentPriorityCache` specific/all/sp3 keys
+- **bugAnalysis.js**: each scoring dimension in isolation, all three flag conditions (positive and negative), per-area tag detection, multi-tag and deduplication, flagText mapping
 
 ### Testing Notes
 - Uses **Vitest** (built into Vite ecosystem, zero config)
@@ -263,18 +283,18 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 ## Next Steps / TODOs
 
 ### Performance Priority Queries (Immediate)
-- [x] Speedometer 3 bugs — meta bug #2026188 (`depends_on` list)
-- [x] Component priority bug lists — Perf Priorities tab (CSS, DOM, Graphics, Layout, Necko)
-- [ ] Define Bugzilla query for **Android Applink** bugs (Performance Priority tab placeholder)
-- [ ] Add filtering and sorting options to Speedometer 3 / Applink subsections
+- [x] Speedometer 3 bugs — meta bug #2026188 (`depends_on` list), now under Perf Priorities as SP3 Prio
+- [x] Component priority bug lists — Perf Priorities tab (CSS, DOM, Graphics, Layout, Necko, JavaScript Engine, Memory Allocator, Web Painting, Storage)
+- [ ] Define Bugzilla query for **Android Applink** bugs (My Tracking tab placeholder)
+- [ ] Add filtering and sorting options to SP3 Prio subsection
 
 ### Data Sources
 - [x] Connect real benchmark data — STMO Redash query #114368 (Android Applink)
 - [x] Add Speedometer 3 data — STMO Redash query #96742 (Desktop & Android)
-- [x] Priority Tracking chart — daily localStorage snapshots of SP3 and Priority bug counts
+- [x] Priority Tracking chart — daily localStorage snapshots of SP3 and My Tracking counts
 
 ### Perf Priorities Tab — Next Steps
-- [x] Add more components — JavaScript Engine (Engine/JIT/GC), Storage, Web Painting, Memory Allocator + Cycle Collector, CSS Transitions
+- [x] Add more components — JavaScript Engine (Engine/JIT/GC), Storage, Web Painting, Memory Allocator + Cycle Collector, CSS Transitions, SP3 Prio
 - [ ] Add more components (DOM: HTML Parser, JavaScript: GC standalone tuning, etc.)
 - [ ] Make Key Observations editable / storable per-component
 - [ ] Add a chart view (score distribution, area tag breakdown per component)
@@ -293,6 +313,8 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 ### UI Improvements
 - [x] Light/dark mode toggle (persists to localStorage, falls back to system preference)
 - [x] Export to CSV and Markdown report (Perf Priorities tab)
+- [x] Overview actionable tiles (SP3 Top Bugs, All-Comp Top Bugs, All-Component Area Hotspot, JetStream 3 placeholder)
+- [ ] Populate JetStream 3 tile with real data
 - [ ] Add charts to Performance Priority subsections
 - [ ] Click on chart sections to see detailed bugs
 - [ ] Drill-down navigation (component → bugs)
@@ -324,7 +346,7 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
     - Speedometer: only saved when `latestRow.push_date` advances (guards against overwriting on same-day reloads)
     - Applink: only saved once per calendar day (guarded by `savedDate: 'YYYY-MM-DD'` field)
   - `priority_tracking_history` — daily snapshots `{ 'YYYY-MM-DD': { sp3: N, priority: N } }` for Priority Tracking chart; clear with `localStorage.removeItem('priority_tracking_history')`
-  - `priority_bug_ids` / `priority_bug_tags` — Priority Bugs subsection state
+  - `priority_bug_ids` / `priority_bug_tags` — My Tracking tab bug state
   - `darkMode` — theme toggle state
 
 ### Theme System
@@ -332,6 +354,10 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 - `html.light-mode` class on `<html>` element activates light overrides across all CSS files
 - Do NOT use `@media (prefers-color-scheme: light)` — all light mode rules use `html.light-mode` selectors
 - Toggle state lives in `App.jsx`; persisted to `localStorage.darkMode`
+
+### CSS Layout Notes
+- Overview uses `overview-grid--3col` (`repeat(3, 1fr)`) for rows 1 and 2; row 3 is a plain full-width `chart-card`
+- `.overview-top-bug-summary` must NOT have `white-space: nowrap` — it causes horizontal overflow in 1fr grid cells
 
 ### Commented Out Code
 - Product/Component search boxes at top (Dashboard.jsx lines 240-259)
@@ -362,5 +388,5 @@ Check console logs for "Cache HIT" or "Cache MISS". Click refresh button to clea
 ---
 
 **Last Updated**: 2026-04-02
-**Version**: 0.2.0
+**Version**: 0.3.0
 **Status**: Active Development

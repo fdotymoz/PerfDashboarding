@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
-import { Pie, Bar, Line } from 'react-chartjs-2'
+import { Chart as ChartJS, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title } from 'chart.js'
+import { Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
-import { fetchBugs, groupBugsBySeverity, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchComponentPriorityBugs } from '../services/bugzillaService'
+import { fetchBugs, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchComponentPriorityBugs } from '../services/bugzillaService'
 import { fetchBenchmarkRows, fetchSpeedometerRows } from '../services/redashService'
 import { AREA_DEFS, AREA_COLORS, getAreaTags, scoreBug, getBugFlags, flagText } from '../utils/bugAnalysis'
 import BugTable from './BugTable'
 import ComponentPriorities from './ComponentPriorities'
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
+ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title)
 
 function Dashboard() {
   const [activeView, setActiveView] = useState('overview')
@@ -521,37 +521,6 @@ function Dashboard() {
         return prioritySelectedTags.some(tag => bugTagList.includes(tag))
       })
 
-  // Process bug data for charts
-  const severityCounts = bugs.length > 0 ? groupBugsBySeverity(bugs) : { Critical: 0, High: 0, Medium: 0, Low: 0 }
-  const componentCounts = bugs.length > 0 ? groupBugsByComponent(bugs) : {}
-
-  // Prepare chart data from real Bugzilla data
-  const bugData = {
-    labels: ['Critical', 'High', 'Medium', 'Low'],
-    datasets: [{
-      label: 'Bug Count by Severity',
-      data: [
-        severityCounts.Critical || 0,
-        severityCounts.High || 0,
-        severityCounts.Medium || 0,
-        severityCounts.Low || 0
-      ],
-      backgroundColor: [
-        'rgba(255, 99, 132, 0.8)',
-        'rgba(255, 159, 64, 0.8)',
-        'rgba(255, 205, 86, 0.8)',
-        'rgba(75, 192, 192, 0.8)',
-      ],
-      borderColor: [
-        'rgb(255, 99, 132)',
-        'rgb(255, 159, 64)',
-        'rgb(255, 205, 86)',
-        'rgb(75, 192, 192)',
-      ],
-      borderWidth: 2,
-    }],
-  }
-
   // Overview performance impact chart data
   const overviewBugData = {
     labels: ['Priority', 'High', 'Med', 'Low'],
@@ -789,12 +758,6 @@ function Dashboard() {
           Perf Priorities
         </button>
         <button
-          className={activeView === 'bugs' ? 'active' : ''}
-          onClick={() => setActiveView('bugs')}
-        >
-          Bug Tracking
-        </button>
-        <button
           className={activeView === 'perfimpact' ? 'active' : ''}
           onClick={() => setActiveView('perfimpact')}
         >
@@ -1013,17 +976,6 @@ function Dashboard() {
               {!allCompLoading && areaHotspotAllRows.length === 0 && (
                 <p className="chart-subtitle" style={{textAlign:'center', marginTop:'40px'}}>No data yet.</p>
               )}
-            </div>
-          </div>
-        )}
-
-        {activeView === 'bugs' && (
-          <div className="view-container">
-            <div className="chart-card large">
-              <h3>Bug Tracking by Severity</h3>
-              <div className="chart-container">
-                <Pie data={bugData} options={chartOptions} />
-              </div>
             </div>
           </div>
         )}
