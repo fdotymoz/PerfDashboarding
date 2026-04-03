@@ -282,7 +282,8 @@ export async function fetchSpeedometer3Bugs(useCache = true) {
  *   1. status_whiteboard contains [perf-prio]
  *   2. cf_performance_impact is high or medium
  *
- * Supported componentKey values: 'css', 'dom', 'graphics', 'layout', 'necko'
+ * Supported componentKey values: 'css', 'dom', 'graphics', 'javascript', 'layout',
+ * 'memory', 'necko', 'painting', 'storage'
  * 'necko' additionally queries Firefox for Android (no component filter).
  *
  * @param {string} componentKey
@@ -291,14 +292,18 @@ export async function fetchSpeedometer3Bugs(useCache = true) {
  */
 export async function fetchComponentPriorityBugs(componentKey, useCache = true) {
   const COMPONENT_DEFS = {
-    css:      [{ componentSubstring: 'CSS Parsing' }],
-    dom:      [{ componentSubstring: 'DOM' }],
-    graphics: [{ componentSubstring: 'Graphics' }],
-    layout:   [{ componentSubstring: 'Layout' }],
-    necko:    [
+    css:        [{ componentSubstring: 'CSS Parsing' }, { componentSubstring: 'CSS Transitions' }],
+    dom:        [{ componentSubstring: 'DOM' }],
+    graphics:   [{ componentSubstring: 'Graphics' }],
+    javascript: [{ componentSubstring: 'JavaScript' }],
+    layout:     [{ componentSubstring: 'Layout' }],
+    memory:     [{ componentSubstring: 'Memory Allocator' }, { componentSubstring: 'Cycle Collector' }],
+    necko:      [
       { componentSubstring: 'Networking' },
       { androidProduct: 'Firefox for Android' },
     ],
+    painting:   [{ componentSubstring: 'Web Painting' }],
+    storage:    [{ componentSubstring: 'Storage' }],
   }
 
   const defs = COMPONENT_DEFS[componentKey]
@@ -358,7 +363,7 @@ export async function fetchComponentPriorityBugs(componentKey, useCache = true) 
 export function clearComponentPriorityCache(componentKey = null) {
   const keys = componentKey
     ? [`component-priority-${componentKey}`]
-    : ['css', 'dom', 'graphics', 'layout', 'necko'].map(k => `component-priority-${k}`)
+    : ['css', 'dom', 'graphics', 'javascript', 'layout', 'memory', 'necko', 'painting', 'storage'].map(k => `component-priority-${k}`)
   keys.forEach(k => clearCache(k))
 }
 

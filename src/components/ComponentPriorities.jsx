@@ -3,17 +3,30 @@ import { fetchComponentPriorityBugs, clearComponentPriorityCache } from '../serv
 import './ComponentPriorities.css'
 
 const COMPONENTS = [
-  { key: 'css',      label: 'CSS Parsing & Computation' },
-  { key: 'dom',      label: 'DOM' },
-  { key: 'graphics', label: 'Graphics' },
-  { key: 'layout',   label: 'Layout' },
-  { key: 'necko',    label: 'Necko / Networking' },
+  { key: 'css',        label: 'CSS Parsing & Transitions' },
+  { key: 'dom',        label: 'DOM' },
+  { key: 'graphics',   label: 'Graphics' },
+  { key: 'javascript', label: 'JavaScript Engine' },
+  { key: 'layout',     label: 'Layout' },
+  { key: 'memory',     label: 'Memory Allocator' },
+  { key: 'necko',      label: 'Necko / Networking' },
+  { key: 'painting',   label: 'Web Painting' },
+  { key: 'storage',    label: 'Storage' },
 ]
 
-// Normalize a Graphics sub-component name for display
-function graphicsSubLabel(component) {
-  if (!component || component === 'Graphics') return 'Core'
-  return component.replace(/^Graphics:\s*/, '')
+// Per-component sub-label normalizers. Only components with an entry here get
+// the sub-component grouping UI.
+const SUB_LABEL_FNS = {
+  graphics: (component) => {
+    if (!component || component === 'Graphics') return 'Core'
+    return component.replace(/^Graphics:\s*/, '')
+  },
+  javascript: (component) => {
+    if (!component || component === 'JavaScript Engine') return 'Engine'
+    if (/JIT/i.test(component)) return 'JIT'
+    if (/GC|Garbage/i.test(component)) return 'GC'
+    return component.replace(/^JavaScript(?:\s+Engine)?:?\s*/i, '').replace(/^Engine:?\s*/i, '') || 'Engine'
+  },
 }
 
 const OBSERVATIONS = {
@@ -53,6 +66,36 @@ const OBSERVATIONS = {
       'Bug 1528285 (AsyncOpen / OnStartRequest off the main thread) is the architectural keystone for Necko performance. Moving these calls off the main thread would reduce latency for multiple downstream bugs. It is a P2 meta bug open since 2018 with almost no forward momentum.',
       'Android networking performance is severely under-tracked. Bug 1993424 (tabs list slow to update, S2, 41 comments, no priority) is the highest-signal Android bug in this dataset and has no owner.',
       'Bug 1807322 (long DNS resolution times on startup, Android) represents the class of DoH-related performance concerns relevant to mobile users on variable-quality connections.',
+    ],
+  },
+  javascript: {
+    items: [
+      'Bug 1963578 (ChatGPT script execution slowness, S2/P1, HIGH impact, 55 comments) is the highest-composite-score bug across all components surveyed. It is already well-triaged and assigned — its presence here confirms the JS Engine is the critical bottleneck for AI-heavy web applications.',
+      'Bug 1488435 (Google Docs typing delay, 36 comments) and Bug 1653088 (voice.google.com GC-triggered audio hang, S4/P3 but 34 comments) represent a recurring pattern: GC pauses and JIT compilation overhead causing user-visible hangs in widely-used productivity apps. Bug 1653088 is a textbook "underappreciated" bug — S4 severity, but comment depth and user-visible impact suggest it deserves re-evaluation.',
+      'JavaScript GC bugs (Bug 1926474 JSRope concat on Android perf-prio, 30 comments; Bug 1842074 SP3 heap growth perf-prio, 12 comments) indicate GC tuning is a consistent opportunity, particularly on Android where memory pressure is higher and GC pauses are more disruptive.',
+      'Sub-component grouping (Engine / JIT / GC) mirrors the Graphics pattern and makes it easier to route bugs to the right team members. JIT and GC together account for the majority of actionable optimization headroom in this set.',
+    ],
+  },
+  storage: {
+    items: [
+      'Bug 1903530 (Android jank caused by Storage I/O, S2/P2, HIGH impact, 47 comments, assigned) is the best-triaged bug in this set. Its presence here confirms that storage I/O on Android is a confirmed, measured bottleneck — not a theoretical concern.',
+      'Bug 1778472 (Firefox startup blocked for 24 seconds waiting on a Storage read, 19 comments, unassigned) is the most actionable underappreciated bug in this set — a severe user-visible startup degradation with no owner. Any startup time investment should include this as a candidate.',
+      'The Storage component has relatively few perf-signal bugs (3 total), but the ones that exist are high-signal and span both Android and Desktop startup paths, suggesting Storage I/O is a focused, tractable area for improvement.',
+    ],
+  },
+  painting: {
+    items: [
+      'Bugs 1843930 (CodeMirror editor painting 2x slower than Chrome on SP3, assigned tnikkel) and 1846559 (TodoMVC paint 1.5x slower) are directly linked to Speedometer 3 subtest regressions. Both carry [perf-prio] tags — good organizational awareness — but remain open.',
+      'Bug 1456638 (checkerboard scroll painting, 27 comments) has been open for years and represents the class of "paint-while-scrolling" problems that disproportionately affect users on slower connections or lower-end devices, where content arrives after the scroll gesture.',
+      'Web Painting bugs are small in number but high in SP3 impact. Most are already on the right teams\' radar via [perf-prio] tags, making this a component where existing prioritization signals are relatively reliable.',
+    ],
+  },
+  memory: {
+    items: [
+      'Bug 1928177 (jemalloc thread-local arena tuning, P1, perf-prio) is the only P1 bug in the Memory / Cycle Collector set. Low comment count (3) suggests it may be blocked or parked — worth a status check.',
+      'Bug 1842074 (SP3 heap grows from ~11MB to ~40MB over 20 benchmark iterations, perf-prio, 12 comments) captures a concrete memory regression in the Speedometer 3 benchmark. Heap growth under sustained workloads degrades score over time and inflates GC pressure.',
+      'Bug 1712512 (crunchyroll.com memory growth, S3/P2, 8 comments) represents the class of real-world site memory leaks. Combined with the SP3 heap growth bug, there is a consistent pattern of sustained-workload memory inflation that warrants dedicated investigation.',
+      'Memory Allocator and Cycle Collector are grouped because both affect heap footprint — allocator tuning reduces baseline usage while CC improvements reduce retained garbage. They are complementary levers for the same user-visible symptom.',
     ],
   },
 }
@@ -241,9 +284,12 @@ function ComponentPriorities() {
     .map(bug => ({ ...bug, score: scoreBug(bug), flags: getBugFlags(bug), areas: getAreaTags(bug) }))
     .sort((a, b) => b.score - a.score)
 
-  // Available sub-components (Graphics only)
-  const subComponents = selectedKey === 'graphics'
-    ? ['All', ...[...new Set(bugs.map(b => graphicsSubLabel(b.component)))].sort()]
+  // Sub-label function for the selected component (undefined if no grouping)
+  const subLabelFn = SUB_LABEL_FNS[selectedKey]
+
+  // Available sub-components (only for components that define a sub-label function)
+  const subComponents = subLabelFn
+    ? ['All', ...[...new Set(bugs.map(b => subLabelFn(b.component)))].sort()]
     : []
 
   // Available area tags across all scored bugs
@@ -253,8 +299,8 @@ function ComponentPriorities() {
 
   // Apply sub-component + area filters
   const filteredBugs = scoredBugs.filter(bug => {
-    if (selectedKey === 'graphics' && selectedSubComp !== 'All') {
-      if (graphicsSubLabel(bug.component) !== selectedSubComp) return false
+    if (subLabelFn && selectedSubComp !== 'All') {
+      if (subLabelFn(bug.component) !== selectedSubComp) return false
     }
     if (selectedAreas.length > 0 && !selectedAreas.some(a => bug.areas.includes(a))) return false
     return true
@@ -262,11 +308,11 @@ function ComponentPriorities() {
 
   const displayBugs = showAll ? filteredBugs : filteredBugs.slice(0, 20)
 
-  // For Graphics "All": group display bugs by sub-component
-  const isGrouped = selectedKey === 'graphics' && selectedSubComp === 'All'
+  // For components with sub-labels, "All" view groups by sub-component
+  const isGrouped = !!subLabelFn && selectedSubComp === 'All'
   const groupedBugs = isGrouped
     ? displayBugs.reduce((acc, bug) => {
-        const sub = graphicsSubLabel(bug.component)
+        const sub = subLabelFn(bug.component)
         if (!acc[sub]) acc[sub] = []
         acc[sub].push(bug)
         return acc
@@ -437,7 +483,7 @@ function ComponentPriorities() {
                   {sub}
                   {sub !== 'All' && (
                     <span className="cp-subcomp-count">
-                      {scoredBugs.filter(b => graphicsSubLabel(b.component) === sub).length}
+                      {scoredBugs.filter(b => subLabelFn(b.component) === sub).length}
                     </span>
                   )}
                 </button>

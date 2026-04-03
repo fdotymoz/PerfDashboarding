@@ -91,6 +91,23 @@ Two tables stacked vertically:
 - Aggregates bugs from high/medium/low impact levels
 - Bar chart showing bug counts by component
 
+### 7. Perf Priorities Tab ⭐
+- **9 components tracked**: CSS Parsing & Transitions, DOM, Graphics, JavaScript Engine, Layout, Memory Allocator, Necko / Networking, Web Painting, Storage
+- **Dual signal query**: union of `status_whiteboard` contains `[perf-prio]` OR `cf_performance_impact` = high/medium; these two sets are largely disjoint and combining them is essential
+- **Necko** additionally queries `product=Firefox for Android` (no component filter) and merges + deduplicates
+- **CSS** queries both CSS Parsing and CSS Transitions and Animations components
+- **Memory** merges Memory Allocator + Cycle Collector results (deduplicated)
+- **Composite scoring** per bug: perf signal (high=3, med=2, perf-prio only=1) + severity (S2=3, S3=2, S4=1) + priority (P2=3, P3=2, P4=1) + comment depth (≥30=3, ≥15=2, ≥8=1) + active in last 6 months (+1)
+- **Sub-component grouping** for Graphics (Core / Canvas2D / CanvasWebGL / ImageLib / Text / WebRender) and JavaScript Engine (Engine / JIT / GC); secondary tab row with bug count badges; "All" view renders grouped table sections
+- **11 area-of-improvement tags** auto-detected from summary/component/product keywords:
+  - SP3, Page Load, Scrolling, Video, Startup, Animation, Input, Memory, Battery, Network, Android
+- **Area filter pills**: click one or more area tags to cross-filter the table
+- **Flag chips** per row: ⚠ Underappreciated (high/medium impact but sev+pri unset), Needs Triage (no impact field + no sev/pri/assignee), Stale (>6 months inactive)
+- **Key Observations** panel per component — hardcoded analysis from initial investigation, shown above the table
+- **Export**: ↓ CSV (full table with Areas + Flags columns) and ↓ Report (Markdown with observations, bug table, scoring methodology, area definitions)
+- Shows top 20 by default; "Show all N bugs" toggle
+- Refresh button clears cache for the selected component only; 5-min TTL otherwise
+
 ## Performance Optimizations
 
 ### Caching (5-minute TTL)
@@ -113,21 +130,23 @@ Two tables stacked vertically:
 ```
 src/
 ├── components/
-│   ├── Dashboard.jsx           # Main dashboard with all views
-│   ├── Dashboard.css           # Dashboard styles
-│   ├── BugTable.jsx            # Reusable bug table with pagination
-│   └── BugTable.css            # Table styles
+│   ├── Dashboard.jsx              # Main dashboard with all views
+│   ├── Dashboard.css              # Dashboard styles
+│   ├── BugTable.jsx               # Reusable bug table with pagination
+│   ├── BugTable.css               # Table styles
+│   ├── ComponentPriorities.jsx    # Perf Priorities tab (scoring, grouping, area tags, export)
+│   └── ComponentPriorities.css   # Perf Priorities styles
 ├── services/
-│   ├── bugzillaService.js      # Bugzilla API integration
-│   ├── bugzillaService.test.js # Unit tests for pure service functions
-│   └── redashService.js        # STMO Redash API (query #114368, POST-then-poll)
+│   ├── bugzillaService.js         # Bugzilla API integration
+│   ├── bugzillaService.test.js    # Unit tests for pure service functions
+│   └── redashService.js           # STMO Redash API (query #114368, POST-then-poll)
 ├── utils/
-│   ├── cache.js                # Caching utilities (TTL, cache keys)
-│   └── cache.test.js           # Unit tests for cache utilities
-├── App.jsx                     # Root component
-├── App.css                     # App-level styles
-├── main.jsx                    # Entry point
-└── index.css                   # Global styles
+│   ├── cache.js                   # Caching utilities (TTL, cache keys)
+│   └── cache.test.js              # Unit tests for cache utilities
+├── App.jsx                        # Root component
+├── App.css                        # App-level styles
+├── main.jsx                       # Entry point
+└── index.css                      # Global styles
 ```
 
 ## Bugzilla API Integration
@@ -176,6 +195,8 @@ src/
 - `groupBugsByComponent(bugs)` - Count bugs per component
 - `getBugStats(bugs)` - Calculate open/closed/total stats
 - `clearPerformanceImpactCache(impactLevel)` - Clear specific cache
+- `fetchComponentPriorityBugs(componentKey, useCache)` - Union query ([perf-prio] OR cf_performance_impact high/medium) for a named component group; keys: `css`, `dom`, `graphics`, `layout`, `necko`; Necko merges Core/Networking + Firefox for Android; cache key `component-priority-{key}`
+- `clearComponentPriorityCache(componentKey)` - Clear cache for one or all component priority keys
 
 ### `redashService.js`
 
@@ -243,7 +264,8 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 
 ### Performance Priority Queries (Immediate)
 - [x] Speedometer 3 bugs — meta bug #2026188 (`depends_on` list)
-- [ ] Define Bugzilla query for **Android Applink** bugs
+- [x] Component priority bug lists — Perf Priorities tab (CSS, DOM, Graphics, Layout, Necko)
+- [ ] Define Bugzilla query for **Android Applink** bugs (Performance Priority tab placeholder)
 - [ ] Add filtering and sorting options to Speedometer 3 / Applink subsections
 
 ### Data Sources
@@ -251,18 +273,26 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 - [x] Add Speedometer 3 data — STMO Redash query #96742 (Desktop & Android)
 - [x] Priority Tracking chart — daily localStorage snapshots of SP3 and Priority bug counts
 
+### Perf Priorities Tab — Next Steps
+- [x] Add more components — JavaScript Engine (Engine/JIT/GC), Storage, Web Painting, Memory Allocator + Cycle Collector, CSS Transitions
+- [ ] Add more components (DOM: HTML Parser, JavaScript: GC standalone tuning, etc.)
+- [ ] Make Key Observations editable / storable per-component
+- [ ] Add a chart view (score distribution, area tag breakdown per component)
+- [ ] Persist area filter selection across tab switches
+- [ ] Link "Needs Triage" bugs directly to a Bugzilla triage view
+
 ### Features to Add
 - [ ] Date range filters (last week/month/quarter)
 - [ ] Status filters (open/closed/resolved)
 - [ ] Priority filters (P1/P2/P3/P4/P5)
 - [ ] Assignee filters
-- [ ] Export to CSV/JSON
 - [ ] Save custom queries/views
 - [ ] Email/Slack notifications for new bugs
 - [ ] Real-time updates (WebSocket or polling)
 
 ### UI Improvements
 - [x] Light/dark mode toggle (persists to localStorage, falls back to system preference)
+- [x] Export to CSV and Markdown report (Perf Priorities tab)
 - [ ] Add charts to Performance Priority subsections
 - [ ] Click on chart sections to see detailed bugs
 - [ ] Drill-down navigation (component → bugs)
@@ -331,6 +361,6 @@ Check console logs for "Cache HIT" or "Cache MISS". Click refresh button to clea
 
 ---
 
-**Last Updated**: 2026-03-26
-**Version**: MVP (0.1.0)
+**Last Updated**: 2026-04-02
+**Version**: 0.2.0
 **Status**: Active Development
