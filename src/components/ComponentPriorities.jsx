@@ -3,6 +3,7 @@ import { fetchComponentPriorityBugs, clearComponentPriorityCache } from '../serv
 import './ComponentPriorities.css'
 
 const COMPONENTS = [
+  { key: 'sp3',        label: 'SP3 Prio' },
   { key: 'css',        label: 'CSS Parsing & Transitions' },
   { key: 'dom',        label: 'DOM' },
   { key: 'graphics',   label: 'Graphics' },
@@ -30,6 +31,14 @@ const SUB_LABEL_FNS = {
 }
 
 const OBSERVATIONS = {
+  sp3: {
+    items: [
+      'Every bug here was manually nominated to meta bug #2026188, meaning a human decided it directly affects the Speedometer 3 score — a stronger signal than the cf_performance_impact field alone. Cross-check against other component views to spot bugs that appear in both lists.',
+      'SP3 bugs tend to be better-triaged than the broader component population: more have sev/pri set, more have assignees. The scoring here differentiates within that well-triaged group — comment depth and recency are the key discriminators.',
+      'Several bugs here are site-specific benchmark regressions (TipTap, CodeMirror, TodoMVC, React Stock). These represent workloads that the SP3 benchmark was designed to stress — fixing them improves a real score, not just a synthetic metric.',
+      'Bugs with no cf_performance_impact set are not lower-priority: they were explicitly added to this meta bug, which is itself the strongest available SP3-impact signal. The "Needs Triage" flag here means the Bugzilla metadata is incomplete, not that the bug is unimportant.',
+    ],
+  },
   css: {
     items: [
       'Bug 1850809 is ranked at the top of the current SP3 style comparison report. Root causes are well understood — transition handling, visited-link CSS overhead, and custom property substitution together account for a measurable gap vs. Chrome — yet the bug carries no assigned owner or org priority.',
@@ -243,8 +252,8 @@ function downloadFile(content, filename, type) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-function ComponentPriorities() {
-  const [selectedKey, setSelectedKey] = useState('css')
+function ComponentPriorities({ initialKey } = {}) {
+  const [selectedKey, setSelectedKey] = useState(initialKey || 'sp3')
   const [bugs, setBugs] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)

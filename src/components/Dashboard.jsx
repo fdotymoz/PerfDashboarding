@@ -38,7 +38,10 @@ function Dashboard() {
   const [overviewPerfCounts, setOverviewPerfCounts] = useState({ high: 0, medium: 0, low: 0 })
 
   // Performance Priority subsection state
-  const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('speedometer3')
+  const [perfPrioritySubsection, setPerfPrioritySubsection] = useState('prioritybugs')
+
+  // Initial key for Perf Priorities tab (set when navigating from a deep-link, e.g. Overview SP3 tile)
+  const [compPrioritiesInitialKey, setCompPrioritiesInitialKey] = useState(null)
 
   // Speedometer 3 subsection bugs (from meta bug 2026188)
   const [sp3Bugs, setSp3Bugs] = useState([])
@@ -264,9 +267,9 @@ function Dashboard() {
     loadSpeedometer()
   }, [activeView, speedometerRefreshTick])
 
-  // Fetch Speedometer 3 priority bugs from meta bug 2026188
+  // Fetch Speedometer 3 priority bugs from meta bug 2026188 (used for Overview quick stats count)
   useEffect(() => {
-    if (activeView !== 'overview' && (activeView !== 'perfpriority' || perfPrioritySubsection !== 'speedometer3')) return
+    if (activeView !== 'overview') return
     if (sp3Bugs.length > 0) return // already loaded
     async function loadSp3Bugs() {
       setSp3BugsLoading(true)
@@ -288,7 +291,7 @@ function Dashboard() {
       }
     }
     loadSp3Bugs()
-  }, [activeView, perfPrioritySubsection, sp3RefreshTick])
+  }, [activeView, sp3RefreshTick])
 
   // Persist current Speedometer Desktop KPI value to localStorage when data updates.
   // Only save when the underlying data date changes so that prevKpiValues (captured at mount)
@@ -719,8 +722,8 @@ function Dashboard() {
                 </div>
                 <div
                   className="stat-item stat-item-link"
-                  onClick={() => { setActiveView('perfpriority'); setPerfPrioritySubsection('speedometer3') }}
-                  title="Go to Speedometer 3 Priority Bugs"
+                  onClick={() => { setCompPrioritiesInitialKey('sp3'); setActiveView('compriorities') }}
+                  title="Go to SP3 Priority Bugs in Perf Priorities tab"
                 >
                   <span className="stat-value">{sp3Bugs.length}</span>
                   <span className="stat-label">Priority SP3</span>
@@ -1132,12 +1135,6 @@ function Dashboard() {
 
             <nav className="subsection-nav">
               <button
-                className={perfPrioritySubsection === 'speedometer3' ? 'active' : ''}
-                onClick={() => setPerfPrioritySubsection('speedometer3')}
-              >
-                Speedometer 3
-              </button>
-              <button
                 className={perfPrioritySubsection === 'androidapplink' ? 'active' : ''}
                 onClick={() => setPerfPrioritySubsection('androidapplink')}
               >
@@ -1152,53 +1149,6 @@ function Dashboard() {
             </nav>
 
             <div className="subsection-content">
-              {perfPrioritySubsection === 'speedometer3' && (
-                <div className="priority-section">
-                  <div className="perf-impact-header">
-                    <h3>Speedometer 3</h3>
-                    <div className="perf-impact-controls">
-                      <a
-                        href="https://bugzilla.mozilla.org/show_bug.cgi?id=2026188"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="meta-bug-link"
-                        title="Open meta bug 2026188"
-                      >
-                        Meta Bug #2026188 ↗
-                      </a>
-                      <button
-                        className="refresh-button"
-                        onClick={() => { setSp3Bugs([]); setSp3BugsError(null); setSp3RefreshTick(t => t + 1) }}
-                        disabled={sp3BugsLoading}
-                        title="Refresh data (clears cache)"
-                      >
-                        ↻ Refresh
-                      </button>
-                    </div>
-                  </div>
-
-                  {sp3BugsLoading && (
-                    <div className="loading-container">
-                      <div className="loading-spinner"></div>
-                      <p>Loading bugs from meta bug #2026188…</p>
-                    </div>
-                  )}
-                  {sp3BugsError && !sp3BugsLoading && (
-                    <div className="error-message">
-                      <p>Error: {sp3BugsError}</p>
-                    </div>
-                  )}
-                  {!sp3BugsLoading && !sp3BugsError && sp3Bugs.length > 0 && (
-                    <BugTable bugs={sp3Bugs} />
-                  )}
-                  {!sp3BugsLoading && !sp3BugsError && sp3Bugs.length === 0 && (
-                    <div className="query-placeholder">
-                      <p>No bugs found under meta bug #2026188.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {perfPrioritySubsection === 'androidapplink' && (
                 <div className="priority-section">
                   <h3>Android Applink</h3>
@@ -1317,7 +1267,7 @@ function Dashboard() {
           </div>
         )}
 
-        {activeView === 'compriorities' && <ComponentPriorities />}
+        {activeView === 'compriorities' && <ComponentPriorities initialKey={compPrioritiesInitialKey} />}
       </div>
 
       <div className="toast-container">

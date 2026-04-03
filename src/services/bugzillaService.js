@@ -303,6 +303,7 @@ export async function fetchComponentPriorityBugs(componentKey, useCache = true) 
       { androidProduct: 'Firefox for Android' },
     ],
     painting:   [{ componentSubstring: 'Web Painting' }],
+    sp3:        [{ metaBugId: 2026188 }],
     storage:    [{ componentSubstring: 'Storage' }],
   }
 
@@ -318,6 +319,17 @@ export async function fetchComponentPriorityBugs(componentKey, useCache = true) 
     const fields = 'include_fields=id%2Csummary%2Cseverity%2Cpriority%2Cstatus%2Ccomponent%2Cproduct%2Cassigned_to%2Cassigned_to_detail%2Clast_change_time%2Ccf_performance_impact%2Ccomment_count'
 
     const fetchDef = async (def) => {
+      // Meta bug path: fetch all bugs listed in depends_on with full scoring fields
+      if (def.metaBugId) {
+        const depIds = await fetchDependsOnIds(def.metaBugId)
+        if (depIds.length === 0) return []
+        const idParams = depIds.map(id => `id=${encodeURIComponent(id)}`).join('&')
+        const url = `${BUGZILLA_API_BASE}/bug?${idParams}&${fields}${keyParam}`
+        const response = await fetch(url)
+        if (!response.ok) throw new Error(`Bugzilla API error: ${response.status}`)
+        const data = await response.json()
+        return data.bugs || []
+      }
       let url
       if (def.componentSubstring) {
         url = `${BUGZILLA_API_BASE}/bug?${statuses}`
@@ -363,7 +375,7 @@ export async function fetchComponentPriorityBugs(componentKey, useCache = true) 
 export function clearComponentPriorityCache(componentKey = null) {
   const keys = componentKey
     ? [`component-priority-${componentKey}`]
-    : ['css', 'dom', 'graphics', 'javascript', 'layout', 'memory', 'necko', 'painting', 'storage'].map(k => `component-priority-${k}`)
+    : ['css', 'dom', 'graphics', 'javascript', 'layout', 'memory', 'necko', 'painting', 'sp3', 'storage'].map(k => `component-priority-${k}`)
   keys.forEach(k => clearCache(k))
 }
 
