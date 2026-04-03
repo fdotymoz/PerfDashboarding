@@ -450,6 +450,27 @@ function Dashboard() {
     }
   }
 
+  // Add a bug from Perf Priorities tab to My Tracking with auto-tag from cf_performance_impact
+  const handleAddFromCompPriorities = (bug) => {
+    const id = String(bug.id)
+    const tagMap = { high: 'Perf High', medium: 'Perf Med', low: 'Perf Low' }
+    const tag = tagMap[bug.cf_performance_impact]
+    const isNew = !priorityBugIds.includes(id)
+    setPriorityBugIds(prev => prev.includes(id) ? prev : [...prev, id])
+    if (tag) {
+      setPriorityBugTags(prev => {
+        const existing = prev[id] || []
+        if (existing.includes(tag)) return prev
+        return { ...prev, [id]: [...existing, tag] }
+      })
+    }
+    if (isNew) {
+      showToast(`Bug #${id} added to My Tracking`)
+    } else {
+      showToast(`Bug #${id} is already in My Tracking`, 'info')
+    }
+  }
+
   // Filter performance impact bugs by selected component
   const filteredPerfImpactBugs = selectedComponent === 'all'
     ? perfImpactBugs
@@ -677,12 +698,6 @@ function Dashboard() {
           Performance Impact
         </button>
         <button
-          className={activeView === 'perfpriority' ? 'active' : ''}
-          onClick={() => setActiveView('perfpriority')}
-        >
-          Performance Priority
-        </button>
-        <button
           className={activeView === 'benchmarks' ? 'active' : ''}
           onClick={() => setActiveView('benchmarks')}
         >
@@ -699,6 +714,12 @@ function Dashboard() {
           onClick={() => setActiveView('compriorities')}
         >
           Perf Priorities
+        </button>
+        <button
+          className={activeView === 'perfpriority' ? 'active' : ''}
+          onClick={() => setActiveView('perfpriority')}
+        >
+          My Tracking
         </button>
       </nav>
 
@@ -1127,42 +1148,14 @@ function Dashboard() {
         {activeView === 'perfpriority' && (
           <div className="perf-priority-container">
             <div className="perf-priority-header">
-              <h2>Performance Priority</h2>
+              <h2>My Tracking</h2>
               <p className="section-description">
-                Focus areas for performance improvements
+                Bugs you are personally tracking
               </p>
             </div>
 
-            <nav className="subsection-nav">
-              <button
-                className={perfPrioritySubsection === 'androidapplink' ? 'active' : ''}
-                onClick={() => setPerfPrioritySubsection('androidapplink')}
-              >
-                Android Applink
-              </button>
-              <button
-                className={perfPrioritySubsection === 'prioritybugs' ? 'active' : ''}
-                onClick={() => setPerfPrioritySubsection('prioritybugs')}
-              >
-                Priority Bugs
-              </button>
-            </nav>
-
             <div className="subsection-content">
-              {perfPrioritySubsection === 'androidapplink' && (
-                <div className="priority-section">
-                  <h3>Android Applink</h3>
-                  <p className="placeholder-text">
-                    Bugzilla query will be defined here for Android Applink performance issues.
-                  </p>
-                  <div className="query-placeholder">
-                    <p>📊 Query configuration pending...</p>
-                  </div>
-                </div>
-              )}
-
-              {perfPrioritySubsection === 'prioritybugs' && (
-                <div className="priority-section">
+              <div className="priority-section">
                   <div className="perf-impact-header">
                     <h3>Priority Bugs</h3>
                     <div className="perf-impact-controls">
@@ -1262,12 +1255,11 @@ function Dashboard() {
                     </div>
                   )}
                 </div>
-              )}
             </div>
           </div>
         )}
 
-        {activeView === 'compriorities' && <ComponentPriorities initialKey={compPrioritiesInitialKey} />}
+        {activeView === 'compriorities' && <ComponentPriorities initialKey={compPrioritiesInitialKey} onAddToPriority={handleAddFromCompPriorities} />}
       </div>
 
       <div className="toast-container">

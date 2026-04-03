@@ -252,7 +252,7 @@ function downloadFile(content, filename, type) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-function ComponentPriorities({ initialKey } = {}) {
+function ComponentPriorities({ initialKey, onAddToPriority } = {}) {
   const [selectedKey, setSelectedKey] = useState(initialKey || 'sp3')
   const [bugs, setBugs] = useState([])
   const [loading, setLoading] = useState(false)
@@ -425,6 +425,11 @@ function ComponentPriorities({ initialKey } = {}) {
           ))}
         </td>
         <td className="cp-flags-cell">{bug.flags.map(f => flagChip(f))}</td>
+        {onAddToPriority && (
+          <td className="cp-add-cell">
+            <button className="cp-add-btn" onClick={() => onAddToPriority(bug)} title="Add to My Tracking">+</button>
+          </td>
+        )}
       </tr>
     )
   }
@@ -444,6 +449,7 @@ function ComponentPriorities({ initialKey } = {}) {
         <th>Assigned To</th>
         <th>Areas</th>
         <th>Flags</th>
+        {onAddToPriority && <th></th>}
       </tr>
     </thead>
   )

@@ -332,6 +332,24 @@
 /* ── Flag chips ── */
 .cp-flags-cell { white-space: nowrap; }
 
+.cp-add-cell { width: 28px; text-align: center; padding: 0 4px; }
+
+.cp-add-btn {
+  background: none;
+  border: none;
+  color: rgba(75, 192, 100, 0.7);
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.cp-add-btn:hover {
+  color: #4bc064;
+  background: rgba(75, 192, 100, 0.15);
+}
+
 .cp-flag {
   display: inline-block;
   padding: 2px 6px;
