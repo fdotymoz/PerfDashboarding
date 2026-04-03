@@ -686,6 +686,12 @@ function Dashboard() {
           Overview
         </button>
         <button
+          className={activeView === 'compriorities' ? 'active' : ''}
+          onClick={() => setActiveView('compriorities')}
+        >
+          Perf Priorities
+        </button>
+        <button
           className={activeView === 'bugs' ? 'active' : ''}
           onClick={() => setActiveView('bugs')}
         >
@@ -708,12 +714,6 @@ function Dashboard() {
           onClick={() => setActiveView('teams')}
         >
           Components
-        </button>
-        <button
-          className={activeView === 'compriorities' ? 'active' : ''}
-          onClick={() => setActiveView('compriorities')}
-        >
-          Perf Priorities
         </button>
         <button
           className={activeView === 'perfpriority' ? 'active' : ''}
