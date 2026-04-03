@@ -755,7 +755,7 @@ function Dashboard() {
                   title="Go to Priority Bugs"
                 >
                   <span className="stat-value stat-value-priority">{priorityBugIds.length}</span>
-                  <span className="stat-label">Priority Bugs</span>
+                  <span className="stat-label">My Tracking</span>
                 </div>
                 {(() => {
                   const blendedRow = benchmarkRows.find(r => r.platform_label?.toUpperCase().includes('BLENDED'))
