@@ -24,7 +24,7 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - **Quick Stats** banner (full-width, top of page): Total Bugs, Open Bugs, Closed Bugs, Priority SP3 (→ Perf Priorities tab SP3 Prio), My Tracking (→ My Tracking tab), Applink Delta YTD % (→ Benchmarks tab, green/red color-coded)
   - **Priority SP3** tile shows the count of bugs from meta bug #2026188; fetched via `fetchComponentPriorityBugs('sp3')` on Overview load
 - **Overview tile layout** (3-column CSS grid `overview-grid--3col`):
-  - Row 1: [E Speedometer 3 KPI] [F Android Applink KPI] [H JetStream 3 (placeholder)]
+  - Row 1: [E Speedometer 3 KPI] [F Android Applink KPI] [H JetStream 3 KPI]
   - Row 2: [C Priority Tracking chart] [B SP3 Top Bugs] [G All-Comp Top Bugs]
   - Row 3: [D All-Component Area Hotspot — full width]
 - **Tile descriptions**:
@@ -34,7 +34,7 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
   - **E — Speedometer 3 KPI**: shows Fx vs Chrome Start % (positive=green/good), links to Benchmarks tab; `▲/▼ Xpp` change indicator vs. previous fetch (persisted to `localStorage` under `perf_kpi_prev`)
   - **F — Android Applink KPI**: shows BLENDED TOTAL Fx Delta YTD % (negative=green/good), links to Benchmarks tab; same `perf_kpi_prev` key
   - **G — All-Comp Top Bugs**: top 5 highest-scoring bugs across all non-SP3 components; same row format as B
-  - **H — JetStream 3**: placeholder tile, blank
+  - **H — JetStream 3 KPI**: shows Mac OSX Fx vs Competitor Start % (positive=green/good), links to Benchmarks tab; loads after first Benchmarks tab visit
 
 ### 2. Performance Impact Tab ⭐
 - **Query by impact level**: High, Medium, Low
@@ -286,12 +286,13 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 - [x] Speedometer 3 bugs — meta bug #2026188 (`depends_on` list), now under Perf Priorities as SP3 Prio
 - [x] Component priority bug lists — Perf Priorities tab (CSS, DOM, Graphics, Layout, Necko, JavaScript Engine, Memory Allocator, Web Painting, Storage)
 - [ ] Define Bugzilla query for **Android Applink** bugs (My Tracking tab placeholder)
-- [ ] Add filtering and sorting options to SP3 Prio subsection
+- [x] Add filtering and sorting options to SP3 Prio subsection — area filter pills + composite score sort
 
 ### Data Sources
 - [x] Connect real benchmark data — STMO Redash query #114368 (Android Applink)
 - [x] Add Speedometer 3 data — STMO Redash query #96742 (Desktop & Android)
 - [x] Priority Tracking chart — daily localStorage snapshots of SP3 and My Tracking counts
+- [x] Add JetStream 3 data — Treeherder Performance API (framework 13); Windows, Mac, Linux, Android (A55); 90-day time-series via `jetstreamService.js`
 
 ### Perf Priorities Tab — Next Steps
 - [x] Add more components — JavaScript Engine (Engine/JIT/GC), Storage, Web Painting, Memory Allocator + Cycle Collector, CSS Transitions, SP3 Prio
@@ -313,8 +314,8 @@ tail -f /tmp/claude-1000/-mnt-d-Projects-PerfDashboarding/tasks/*.output
 ### UI Improvements
 - [x] Light/dark mode toggle (persists to localStorage, falls back to system preference)
 - [x] Export to CSV and Markdown report (Perf Priorities tab)
-- [x] Overview actionable tiles (SP3 Top Bugs, All-Comp Top Bugs, All-Component Area Hotspot, JetStream 3 placeholder)
-- [ ] Populate JetStream 3 tile with real data
+- [x] Overview actionable tiles (SP3 Top Bugs, All-Comp Top Bugs, All-Component Area Hotspot, JetStream 3 KPI)
+- [x] Populate JetStream 3 tile with real data — Treeherder live KPI (Mac Fx vs Competitor Start %); full 4-platform table in Benchmarks tab
 - [ ] Add charts to Performance Priority subsections
 - [ ] Click on chart sections to see detailed bugs
 - [ ] Drill-down navigation (component → bugs)
