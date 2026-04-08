@@ -4,6 +4,7 @@ import { Bar, Line } from 'react-chartjs-2'
 import './Dashboard.css'
 import { fetchBugs, groupBugsByComponent, getBugStats, fetchBugsByPerformanceImpact, clearPerformanceImpactCache, fetchAllPerformanceImpactBugs, fetchBugsByIds, fetchComponentPriorityBugs } from '../services/bugzillaService'
 import { fetchBenchmarkRows, fetchSpeedometerRows } from '../services/redashService'
+import { fetchJetstreamAllPlatforms, clearJetstreamCache } from '../services/jetstreamService'
 import { AREA_DEFS, AREA_COLORS, getAreaTags, scoreBug, getBugFlags, flagText } from '../utils/bugAnalysis'
 import BugTable from './BugTable'
 import ComponentPriorities from './ComponentPriorities'
@@ -88,6 +89,12 @@ function Dashboard() {
   const [speedometerLoading, setSpeedometerLoading] = useState(false)
   const [speedometerError, setSpeedometerError] = useState(null)
   const [speedometerRefreshTick, setSpeedometerRefreshTick] = useState(0)
+
+  // JetStream 3 data from Treeherder Performance API
+  const [jetstreamData, setJetstreamData] = useState([])
+  const [jetstreamLoading, setJetstreamLoading] = useState(false)
+  const [jetstreamError, setJetstreamError] = useState(null)
+  const [jetstreamRefreshTick, setJetstreamRefreshTick] = useState(0)
 
   // Previous KPI snapshot from localStorage (captured at mount, before this session's fetch)
   const [prevKpiValues] = useState(() => {
@@ -271,6 +278,26 @@ function Dashboard() {
 
     loadSpeedometer()
   }, [activeView, speedometerRefreshTick])
+
+  // Fetch JetStream 3 data from Treeherder when benchmarks view becomes active
+  useEffect(() => {
+    if (activeView !== 'benchmarks') return
+    if (jetstreamData.length > 0) return // already loaded
+    async function loadJetstream() {
+      setJetstreamLoading(true)
+      setJetstreamError(null)
+      try {
+        const data = await fetchJetstreamAllPlatforms()
+        setJetstreamData(data)
+      } catch (err) {
+        setJetstreamError(err.message)
+        console.error('Failed to fetch JetStream 3 data:', err)
+      } finally {
+        setJetstreamLoading(false)
+      }
+    }
+    loadJetstream()
+  }, [activeView, jetstreamRefreshTick])
 
   // Fetch Speedometer 3 priority bugs from meta bug 2026188 (used for Overview quick stats count)
   useEffect(() => {
@@ -893,13 +920,41 @@ function Dashboard() {
                   )
                 })()}
               </div>
-              {/* H: JetStream 3 (placeholder) */}
+              {/* H: JetStream 3 */}
               <div className="chart-card">
                 <h3>JetStream 3</h3>
-                <p className="chart-subtitle">Benchmark data not yet configured</p>
-                <div className="query-placeholder" style={{marginTop: '32px'}}>
-                  <p>📊 Query configuration pending…</p>
-                </div>
+                {jetstreamLoading && <div className="loading-container"><div className="loading-spinner"></div></div>}
+                {!jetstreamLoading && jetstreamData.length > 0 && (() => {
+                  const osxRow = jetstreamData.find(d => d.osKey === 'osx')
+                  if (!osxRow?.fxPoints.length || !osxRow?.competitorPoints.length) return <p className="chart-subtitle">No data available</p>
+                  const startMs = new Date('2026-01-01').getTime()
+                  const fxLatest = osxRow.fxPoints[osxRow.fxPoints.length - 1]
+                  const compStart = osxRow.competitorPoints.find(p => p.date.getTime() >= startMs) || osxRow.competitorPoints[0]
+                  const delta = fxLatest?.value && compStart?.value ? 100 * (fxLatest.value / compStart.value - 1) : null
+                  const colorClass = delta == null ? '' : delta > 0 ? 'stat-value-delta-good' : 'stat-value-delta-bad'
+                  const compLabel = osxRow.competitorApp
+                    ? osxRow.competitorApp.charAt(0).toUpperCase() + osxRow.competitorApp.slice(1)
+                    : 'Competitor'
+                  return (
+                    <div className="overview-kpi-tile" onClick={() => setActiveView('benchmarks')} title="Go to Benchmarks" style={{cursor: 'pointer'}}>
+                      <span className={`overview-kpi-value ${colorClass}`}>
+                        {delta != null ? (delta > 0 ? '+' : '') + delta.toFixed(2) + '%' : '—'}
+                      </span>
+                      <span className="overview-kpi-label">Fx vs {compLabel} Start (Mac)</span>
+                      <span className="chart-subtitle" style={{marginTop: '4px'}}>{fxLatest.date.toISOString().split('T')[0]}</span>
+                    </div>
+                  )
+                })()}
+                {!jetstreamLoading && jetstreamData.length === 0 && (
+                  <div
+                    className="query-placeholder"
+                    style={{marginTop: '24px', cursor: 'pointer'}}
+                    onClick={() => setActiveView('benchmarks')}
+                    title="Go to Benchmarks tab to load JetStream 3 data"
+                  >
+                    <p>Visit Benchmarks tab to load data</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1164,6 +1219,111 @@ function Dashboard() {
               {!speedometerLoading && !speedometerError && speedometerRows.length === 0 && (
                 <div className="query-placeholder">
                   <p>No Speedometer data available. Click Refresh to load.</p>
+                </div>
+              )}
+            </div>
+
+            {/* JetStream 3 section */}
+            <div className="chart-card benchmark-card">
+              <div className="perf-impact-header">
+                <h3>JetStream 3 — All Platforms</h3>
+                <button
+                  className="refresh-button"
+                  onClick={() => { setJetstreamData([]); setJetstreamError(null); clearJetstreamCache(); setJetstreamRefreshTick(t => t + 1) }}
+                  disabled={jetstreamLoading}
+                  title="Reload data from Treeherder"
+                >
+                  ↻ Refresh
+                </button>
+              </div>
+              <p className="chart-subtitle">Source: Treeherder Performance API (framework 13) — scores (higher is better); YTD from Jan 1, 2026</p>
+
+              {jetstreamLoading && (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <p>Loading JetStream 3 data from Treeherder…</p>
+                </div>
+              )}
+
+              {jetstreamError && !jetstreamLoading && (
+                <div className="error-message">
+                  <p>Error loading JetStream 3 data: {jetstreamError}</p>
+                </div>
+              )}
+
+              {!jetstreamLoading && !jetstreamError && jetstreamData.length > 0 && (() => {
+                const startMs = new Date('2026-01-01').getTime()
+                // Higher is better: positive delta = good = delta-negative (green)
+                const jsClass = v => v == null ? '' : v > 0 ? 'delta-negative' : v < 0 ? 'delta-positive' : ''
+                const fmtDelta = v => v != null ? (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '—'
+                const fmtScore = v => v != null ? v.toFixed(2) : '—'
+
+                const rows = jetstreamData.map(({ label, competitorApp, fxPoints, competitorPoints }) => {
+                  const fxStart = fxPoints.find(p => p.date.getTime() >= startMs) || fxPoints[0] || null
+                  const fxCurrent = fxPoints[fxPoints.length - 1] || null
+                  const compStart = competitorPoints.find(p => p.date.getTime() >= startMs) || competitorPoints[0] || null
+                  const compCurrent = competitorPoints[competitorPoints.length - 1] || null
+                  const fxStartVal = fxStart?.value ?? null
+                  const fxCurrentVal = fxCurrent?.value ?? null
+                  const compStartVal = compStart?.value ?? null
+                  const compCurrentVal = compCurrent?.value ?? null
+                  return {
+                    label,
+                    competitorApp,
+                    fxStart: fxStartVal,
+                    fxCurrent: fxCurrentVal,
+                    fxDeltaYtd: fxStartVal && fxCurrentVal ? 100 * (fxCurrentVal / fxStartVal - 1) : null,
+                    compStart: compStartVal,
+                    compCurrent: compCurrentVal,
+                    deltaVsCompStart: fxCurrentVal && compStartVal ? 100 * (fxCurrentVal / compStartVal - 1) : null,
+                    deltaVsCompCurrent: fxCurrentVal && compCurrentVal ? 100 * (fxCurrentVal / compCurrentVal - 1) : null,
+                    latestDate: fxCurrent?.date?.toISOString?.().split('T')[0] ?? null,
+                  }
+                })
+
+                const latestDate = rows.reduce((best, r) => (r.latestDate > best ? r.latestDate : best), '')
+                const osxRow = jetstreamData.find(d => d.osKey === 'osx')
+                const compLabel = (osxRow?.competitorApp ?? rows[0]?.competitorApp ?? 'Competitor')
+                  .replace(/^./, c => c.toUpperCase())
+
+                return (
+                  <div className="benchmark-table-wrapper">
+                    <table className="benchmark-table">
+                      <thead>
+                        <tr>
+                          <th>Platform</th>
+                          <th>Fx Start</th>
+                          <th>Fx Current</th>
+                          <th>Fx Delta YTD</th>
+                          <th>{compLabel} Start</th>
+                          <th>{compLabel} Current</th>
+                          <th>Fx vs {compLabel} Start</th>
+                          <th>Fx vs {compLabel} Current</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={i}>
+                            <td className="benchmark-platform">{r.label}</td>
+                            <td className="benchmark-num">{fmtScore(r.fxStart)}</td>
+                            <td className="benchmark-num">{fmtScore(r.fxCurrent)}</td>
+                            <td className={`benchmark-num ${jsClass(r.fxDeltaYtd)}`}>{fmtDelta(r.fxDeltaYtd)}</td>
+                            <td className="benchmark-num">{fmtScore(r.compStart)}</td>
+                            <td className="benchmark-num">{fmtScore(r.compCurrent)}</td>
+                            <td className={`benchmark-num ${jsClass(r.deltaVsCompStart)}`}>{fmtDelta(r.deltaVsCompStart)}</td>
+                            <td className={`benchmark-num ${jsClass(r.deltaVsCompCurrent)}`}>{fmtDelta(r.deltaVsCompCurrent)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {latestDate && <p className="chart-subtitle" style={{marginTop: '8px'}}>Latest data: {latestDate}</p>}
+                  </div>
+                )
+              })()}
+
+              {!jetstreamLoading && !jetstreamError && jetstreamData.length === 0 && (
+                <div className="query-placeholder">
+                  <p>No JetStream 3 data available. Click Refresh to load.</p>
                 </div>
               )}
             </div>
