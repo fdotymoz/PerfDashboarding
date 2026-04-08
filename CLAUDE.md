@@ -54,7 +54,7 @@ A modern, interactive dashboard for tracking Mozilla Firefox performance metrics
 - Green `+` button adds bug to My Tracking with auto-tags (Perf High/Med/Low)
 
 ### 3. Benchmarks Tab
-Two tables stacked vertically:
+Three sections stacked vertically:
 
 **Android Applink Startup** (STMO query #114368):
 - Spreadsheet-style table: Platform, Weight, Fx Start, Fx Current, Fx Delta YTD (%), Chrome Start, Chrome Current, Fx vs Chrome Start (%), Fx vs Chrome Current (%)
@@ -71,6 +71,17 @@ Two tables stacked vertically:
 - **Inverted color coding**: positive = green (higher score = better), negative = red
 - Shows "Latest data: YYYY-MM-DD" footer
 - Refresh button uses `speedometerRefreshTick` state
+
+**JetStream 3 — All Platforms** (Treeherder Performance API, framework 13):
+- Four rows: Windows 11, Mac OSX (M4), Linux, Android (A55)
+- Fetches 90-day `score` time-series for Firefox/Fenix and primary competitor (Chrome) per platform via `jetstreamService.js`
+- Columns: Platform, Fx Start, Fx Current, Fx Delta YTD, Competitor Start, Competitor Current, Fx vs Competitor Start, Fx vs Competitor Current
+- Competitor column label derived from actual application name in Treeherder signatures
+- **Inverted color coding**: positive = green (higher score = better), negative = red; same as Speedometer
+- YTD start point: first data point on or after 2026-01-01 within the 90-day window
+- Shows "Latest data: YYYY-MM-DD" footer
+- Refresh button clears cache and re-fetches; 30-minute cache TTL (longer than default, data changes slowly)
+- Loads on first Benchmarks tab visit; uses `jetstreamRefreshTick` state
 
 ### 4. Components Tab
 - **Top 10 components** with any performance impact
@@ -114,8 +125,9 @@ Two tables stacked vertically:
 
 ## Performance Optimizations
 
-### Caching (5-minute TTL)
+### Caching
 - In-memory cache for API responses
+- Default TTL: 5 minutes; JetStream 3 uses 30-minute TTL (Treeherder data changes slowly)
 - Cache keys generated from query parameters
 - Console logs: "Cache HIT" or "Cache MISS"
 - Manual refresh clears cache
@@ -143,7 +155,8 @@ src/
 ├── services/
 │   ├── bugzillaService.js         # Bugzilla API integration
 │   ├── bugzillaService.test.js    # Unit tests for pure service functions
-│   └── redashService.js           # STMO Redash API (query #114368, POST-then-poll)
+│   ├── redashService.js           # STMO Redash API (query #114368, POST-then-poll)
+│   └── jetstreamService.js        # JetStream 3 via Treeherder Performance API (framework 13)
 ├── utils/
 │   ├── bugAnalysis.js             # Shared scoring/flag/area-tag utilities (used by ComponentPriorities + Dashboard)
 │   ├── bugAnalysis.test.js        # Unit tests for bugAnalysis utilities
@@ -210,6 +223,16 @@ src/
 - Both proxied via Vite: `/stmo` → `https://sql.telemetry.mozilla.org`
 - Applink rows: `platform_label, platform_weight, start_value, current_value, delta_ytd, start_value_chrome, delta_ytd_chrome, current_value_chrome, delta_to_chrome_ytd`
 - Speedometer rows: `push_date, firefox_value_ma_desktop, chrome_value_ma_desktop, pct_delta_ma_desktop, firefox_value_ma_android, chrome_value_ma_android, pct_delta_ma_android` (plus raw daily columns)
+
+### `jetstreamService.js`
+
+Self-contained JetStream 3 client — adapted from `../projects/shared/jetstream.js`, no shared module dependency.
+- `PLATFORMS` - Map of osKey → Treeherder platform string (windows, osx, linux, android-a55)
+- `PLATFORM_LABELS` - Map of osKey → display label
+- `fetchJetstreamAllPlatforms(useCache)` - Fetches 90-day `score` time-series for Firefox/Fenix and primary competitor across all 4 platforms in parallel; returns `[{ osKey, label, competitorApp, fxPoints, competitorPoints }]` where points are `{ date: Date, value: number }[]` sorted ascending; 30-min cache TTL under key `jetstream-all-platforms`
+- `clearJetstreamCache()` - Clears the 30-min cache entry
+- Direct fetch to `https://treeherder.mozilla.org/api` — no Vite proxy needed (public CORS-enabled API)
+- Internally calls `/project/mozilla-central/performance/signatures/` to resolve signature IDs, then `/performance/summary/` for time-series data per signature
 
 ### `cache.js`
 
