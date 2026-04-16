@@ -816,18 +816,6 @@ function Dashboard() {
             <div className="stats-card stats-card-full">
               <h3>Quick Stats</h3>
               <div className="stats-grid">
-                <div className="stat-item">
-                  <span className="stat-value">{bugStats?.total || 0}</span>
-                  <span className="stat-label">Total Bugs</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-value">{bugStats?.open || 0}</span>
-                  <span className="stat-label">Open Bugs</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-value">{bugStats?.closed || 0}</span>
-                  <span className="stat-label">Closed Bugs</span>
-                </div>
                 <div
                   className="stat-item stat-item-link"
                   onClick={() => { setCompPrioritiesInitialKey('sp3'); setActiveView('compriorities') }}
